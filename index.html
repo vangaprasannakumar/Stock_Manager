@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- app-version drives cache-busting once a service worker is added later -->
-<meta name="app-version" content="1.1.0">
-<title>Capco Stock Management</title>
+<meta name="app-version" content="1.2.0">
+<title>Stock Management</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cline x1='4' y1='14' x2='11' y2='14' stroke='%232B4C7E' stroke-width='2'/%3E%3Cline x1='11' y1='6' x2='11' y2='22' stroke='%232B4C7E' stroke-width='3'/%3E%3Cline x1='17' y1='6' x2='17' y2='22' stroke='%232B4C7E' stroke-width='3'/%3E%3Cline x1='17' y1='14' x2='24' y2='14' stroke='%232B4C7E' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,20 +19,24 @@
     --ink-soft: #5B615F;
     --ink-faint: #8B918E;
     --rail: #1B2430;
+    --rail-deep: #10161F;
     --rail-soft: #A9B4C4;
     --rail-ink: #ECEEEA;
     --line: #DDE0DA;
     --line-soft: #EAEBE7;
-    --blue: #2B4C7E;
-    --blue-soft: #E6ECF4;
-    --copper: #A9631E;
-    --copper-soft: #F5E9DA;
-    --ok: #2F7A57;
-    --ok-soft: #E3F1E9;
-    --low: #A66A12;
-    --low-soft: #FBEED9;
-    --critical: #AE3A2B;
-    --critical-soft: #F8E4E1;
+    --blue: #2A5CAE;
+    --blue-deep: #1E4483;
+    --blue-soft: #E8EFFA;
+    --copper: #C17A2E;
+    --copper-deep: #9C5E1E;
+    --copper-soft: #FBF0DF;
+    --ok: #278761;
+    --ok-deep: #1D6B4C;
+    --ok-soft: #E1F3EA;
+    --low: #B87611;
+    --low-soft: #FCEFD8;
+    --critical: #C23F2E;
+    --critical-soft: #FAE5E2;
     --none-soft: #EEEEEC;
     --none-ink: #74786F;
     --radius: 10px;
@@ -74,6 +78,17 @@
   @keyframes pulseFade { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
   @keyframes criticalGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(174,58,43,0.28); } 50% { box-shadow: 0 0 0 4px rgba(174,58,43,0); } }
   @keyframes charge { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Spinners ---------- */
+  .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: -2px; margin-right: 7px; }
+  .spinner-dark { border-color: rgba(28,31,30,0.18); border-top-color: var(--ink); }
+
+  #initialLoader { background: var(--paper); }
+  .boot-loader { position: relative; width: 42px; height: 42px; }
+  .boot-ring { position: absolute; inset: 0; animation: spin 0.9s linear infinite; }
+  .boot-mark { position: absolute; inset: 0; margin: auto; width: 16px; height: 16px; color: var(--blue); animation: charge 1.3s ease-in-out infinite; }
 
   /* ---------- Setup / Login screens ---------- */
   .center-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
@@ -290,12 +305,20 @@
 </head>
 <body>
 
+<!-- ================= Initial boot loader ================= -->
+<div id="initialLoader" class="center-screen">
+  <div class="boot-loader">
+    <svg class="boot-ring" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="21" r="17.5" stroke="var(--line)" stroke-width="3"/><circle cx="21" cy="21" r="17.5" stroke="var(--blue)" stroke-width="3" stroke-linecap="round" stroke-dasharray="28 200"/></svg>
+    <svg class="boot-mark" viewBox="0 0 28 28" fill="none"><line x1="4" y1="14" x2="11" y2="14" stroke="currentColor" stroke-width="2"/><line x1="11" y1="6" x2="11" y2="22" stroke="currentColor" stroke-width="3"/><line x1="17" y1="6" x2="17" y2="22" stroke="currentColor" stroke-width="3"/><line x1="17" y1="14" x2="24" y2="14" stroke="currentColor" stroke-width="2"/></svg>
+  </div>
+</div>
+
 <!-- ================= Setup notice ================= -->
 <div id="setupScreen" class="center-screen hidden">
   <div class="auth-card setup-card">
     <div class="auth-brand">
       <svg class="brand-mark" width="26" height="26" viewBox="0 0 28 28" fill="none"><line x1="4" y1="14" x2="11" y2="14" stroke="currentColor" stroke-width="2"/><line x1="11" y1="6" x2="11" y2="22" stroke="currentColor" stroke-width="3"/><line x1="17" y1="6" x2="17" y2="22" stroke="currentColor" stroke-width="3"/><line x1="17" y1="14" x2="24" y2="14" stroke="currentColor" stroke-width="2"/></svg>
-      <div><div class="auth-brand-name">Capco Stock Management</div><div class="auth-brand-sub">Setup required</div></div>
+      <div><div class="auth-brand-name">Stock Management</div><div class="auth-brand-sub">Setup required</div></div>
     </div>
     <h1>One thing before this works</h1>
     <p class="lede">This page needs your Apps Script Web App URL from Phase 2. Open this file, find the line near the top of the script:</p>
