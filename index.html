@@ -318,6 +318,14 @@
   .row-action:first-child { margin-left: 0; }
   .row-action:hover { background: var(--blue-soft); border-color: var(--blue-soft); color: var(--blue); transform: translateY(-2px); box-shadow: var(--shadow); }
   tr.row-inactive { opacity: 0.6; filter: grayscale(50%); }
+
+  /* Compact density for the RM/FG item lists — the default card-style row
+     (8px gaps, per-row shadow, hover-lift) reads well for short lists but
+     gets heavy once these hold hundreds of rows. Users/alerts stay short,
+     so they keep the roomier default. */
+  #page-rm table, #page-fg table { border-spacing: 0 4px; margin-top: -4px; }
+  #page-rm tbody td, #page-fg tbody td { padding: 10px 20px; }
+  #page-rm tbody tr[data-code]:hover, #page-fg tbody tr[data-code]:hover { transform: none; box-shadow: var(--shadow); }
   
   .skeleton-bar { height: 16px; border-radius: 6px; width: 100%; background: linear-gradient(90deg, var(--line-soft) 25%, var(--line) 37%, var(--line-soft) 63%); background-size: 400% 100%; animation: shimmer 1.5s ease infinite; }
 
@@ -333,7 +341,8 @@
   .tag-role-manager { background: var(--copper-soft); color: var(--copper-deep); }
   .tag-role-supervisor { background: var(--violet-soft); color: var(--violet); }
 
-  .status { display: inline-block; font-family: var(--font-ui); font-size: 12px; font-weight: 700; padding: 5px 14px; border-radius: 20px; border: 1px solid transparent; letter-spacing: 0.02em; }
+  .status { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-ui); font-size: 12px; font-weight: 700; padding: 5px 14px; border-radius: 20px; border: 1px solid transparent; letter-spacing: 0.02em; }
+  .status svg { flex-shrink: 0; }
   .status-ok { background: var(--ok-soft); color: var(--ok); border-color: rgba(16, 185, 129, 0.3); }
   .status-low { background: var(--low-soft); color: var(--low); border-color: rgba(245, 158, 11, 0.3); }
   .status-critical { background: var(--critical-soft); color: var(--critical); border-color: rgba(239, 68, 68, 0.3); }
@@ -867,6 +876,14 @@ const FG_CONFIG_UI = {
 
 const EDIT_ICON = '<svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M11.3 2.3a1.5 1.5 0 0 1 2.4 1.8l-.2.3L5.5 12.4l-3 .6.6-3 8-8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 const HISTORY_ICON = '<svg width="18" height="18" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 5.5V8.5L10 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 2.5 2.5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+// Status pills read by shape as well as color — Low/Critical are both
+// warm colors and hard to tell apart under red-green color blindness.
+const STATUS_ICONS = {
+  ok: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M5.3 8.2 7.1 10 10.7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  low: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2.2 14.5 13.2a1 1 0 0 1-.87 1.5H2.37a1 1 0 0 1-.87-1.5L8 2.2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.3V9.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.6" r="0.9" fill="currentColor"/></svg>',
+  critical: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M5.2 1.5h5.6l3.7 3.7v5.6l-3.7 3.7H5.2l-3.7-3.7V5.2l3.7-3.7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 5.2V8.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11" r="0.9" fill="currentColor"/></svg>',
+  none: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M5.3 8H10.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+};
 
 /* =========================================================================
    STATE
@@ -967,6 +984,7 @@ function statusClass(status) {
   if (status === 'Critical') return 'critical';
   return 'none';
 }
+function statusIcon(cls) { return STATUS_ICONS[cls] || STATUS_ICONS.none; }
 function isActiveValue(val) {
   if (val === false) return false;
   if (typeof val === 'string' && val.toUpperCase() === 'FALSE') return false;
@@ -1218,6 +1236,18 @@ function populateCategoryFilters() {
 function renderRMPage() { renderStockTable(RM_CONFIG_UI); }
 function renderFGPage() { renderStockTable(FG_CONFIG_UI); }
 
+// An empty table is an invitation to act, not a dead end — so the message
+// changes with *why* it's empty instead of always blaming "your filters".
+function emptyStateMessage(config, isRM, search, category, status, showInactive) {
+  const itemLabel = isRM ? 'raw material' : 'finished good';
+  const hasFilters = !!search || (category && category !== 'All') || (status && status !== 'All');
+  if (hasFilters) return 'No items match your filters.';
+  const masterHasItems = state[config.masterKey].length > 0;
+  if (masterHasItems && !showInactive) return 'All ' + itemLabel + ' items are inactive — turn on "Show inactive" to see them.';
+  if (state.canEditMaster) return 'No ' + itemLabel + ' items yet — use "+ Add ' + (isRM ? 'RM' : 'FG') + ' item" above to add the first one.';
+  return 'No ' + itemLabel + ' items yet.';
+}
+
 function renderStockTable(config) {
   const isRM = config.key === 'rm';
   const search = isRM ? state.rmSearch : state.fgSearch; const category = isRM ? state.rmCategory : state.fgCategory;
@@ -1256,13 +1286,13 @@ function renderStockTable(config) {
       '<td>' + escapeHtml(r.name || '') + (r.active ? '' : ' <span class="muted">(inactive)</span>') + '</td>' +
       '<td><span class="tag' + tagExtra + '">' + escapeHtml(r.category || '—') + '</span></td>' +
       '<td class="mono num">' + formatNum(r.balance) + ' ' + escapeHtml(r.unit) + '</td>' +
-      '<td><span class="status status-' + statusClass(r.status) + '">' + escapeHtml(r.status) + '</span>' + healthPctText + '</td>' +
+      '<td><span class="status status-' + statusClass(r.status) + '">' + statusIcon(statusClass(r.status)) + escapeHtml(r.status) + '</span>' + healthPctText + '</td>' +
       '<td class="actions-cell"><button class="row-action" data-action="history" title="Transaction history">' + HISTORY_ICON + '</button>' + editBtn + '</td>' +
       '</tr>';
   }).join('');
 
   const bodyEl = document.getElementById(isRM ? 'rmTableBody' : 'fgTableBody');
-  bodyEl.innerHTML = bodyHtml || ('<tr><td colspan="6" class="empty">No items match your filters.</td></tr>');
+  bodyEl.innerHTML = bodyHtml || ('<tr><td colspan="6" class="empty">' + emptyStateMessage(config, isRM, search, category, status, showInactive) + '</td></tr>');
 
   document.getElementById(isRM ? 'rmPageInfo' : 'fgPageInfo').textContent = total === 0 ? '0 items' : ('Showing ' + (start + 1) + '–' + Math.min(start + PAGE_SIZE, total) + ' of ' + total);
   document.getElementById(isRM ? 'rmPrevBtn' : 'fgPrevBtn').disabled = page <= 1; document.getElementById(isRM ? 'rmNextBtn' : 'fgNextBtn').disabled = page >= totalPages;
@@ -1301,7 +1331,7 @@ function renderHome() {
       const cardClass = r.status === 'Critical' ? 'alert-card-critical' : 'alert-card-low';
       
       return '<div class="alert-card ' + cardClass + '" data-code="' + escapeHtml(r.code) + '" data-key="' + r.key + '">' +
-        '<div class="alert-card-header"><div class="alert-card-name">' + escapeHtml(r.name || r.code) + '</div><span class="status status-' + statusClass(r.status) + '">' + escapeHtml(r.status) + '</span></div>' +
+        '<div class="alert-card-header"><div class="alert-card-name">' + escapeHtml(r.name || r.code) + '</div><span class="status status-' + statusClass(r.status) + '">' + statusIcon(statusClass(r.status)) + escapeHtml(r.status) + '</span></div>' +
         '<div class="alert-card-sub"><span class="tag">' + r.type + '</span> <span class="mono">' + escapeHtml(r.code) + '</span></div>' +
         '<div class="alert-card-metrics"><div><span class="alert-card-val">' + formatNum(r.balance) + '</span> <span class="alert-card-unit">' + escapeHtml(r.unit) + '</span></div><div class="alert-card-pct">' + pct + '% of Min</div></div>' +
         '<div class="alert-card-bar-bg"><div class="alert-card-bar-fill" style="width: ' + barWidth + '%;"></div></div>' +
@@ -1490,7 +1520,7 @@ function renderUsersPage() {
   if (rows.length === 0) { body.innerHTML = '<tr><td colspan="7" class="empty">No matching people.</td></tr>'; return; }
   body.innerHTML = rows.map(function (u) {
     const active = isActiveValue(u.Active);
-    return '<tr data-username="' + escapeHtml(u.Username) + '"><td>' + escapeHtml(u.Name) + (active ? '' : ' <span class="muted">(inactive)</span>') + '</td><td class="mono">' + escapeHtml(u.Username) + '</td><td><span class="tag tag-role-' + u.Role.toLowerCase() + '">' + escapeHtml(u.Role) + '</span></td><td>' + escapeHtml(u.Department || '—') + '</td><td>' + escapeHtml(u.Email || '—') + '</td><td><span class="status status-' + (active ? 'ok' : 'none') + '">' + (active ? 'Active' : 'Inactive') + '</span></td><td class="actions-cell"><button class="row-action" data-action="edit-user" title="Edit">' + EDIT_ICON + '</button></td></tr>';
+    return '<tr data-username="' + escapeHtml(u.Username) + '"><td>' + escapeHtml(u.Name) + (active ? '' : ' <span class="muted">(inactive)</span>') + '</td><td class="mono">' + escapeHtml(u.Username) + '</td><td><span class="tag tag-role-' + u.Role.toLowerCase() + '">' + escapeHtml(u.Role) + '</span></td><td>' + escapeHtml(u.Department || '—') + '</td><td>' + escapeHtml(u.Email || '—') + '</td><td><span class="status status-' + (active ? 'ok' : 'none') + '">' + statusIcon(active ? 'ok' : 'none') + (active ? 'Active' : 'Inactive') + '</span></td><td class="actions-cell"><button class="row-action" data-action="edit-user" title="Edit">' + EDIT_ICON + '</button></td></tr>';
   }).join('');
 }
 function openUserModal(username) {
@@ -1512,7 +1542,12 @@ async function handleUserSubmit(e) {
   errEl.textContent = ''; setBtnLoading(btn, activeUserMode === 'add' ? 'Adding…' : 'Saving…');
   const params = { Username: document.getElementById('userUsername').value.trim(), Name: document.getElementById('userFormName').value.trim(), Role: document.getElementById('userRole').value, Department: document.getElementById('userDept').value, Email: document.getElementById('userEmail').value.trim(), Phone: document.getElementById('userPhone').value.trim() };
   try {
-    if (activeUserMode === 'add') { await api('addUser', params); toast('Added ' + params.Name + ' — an invite email is on its way.'); } else { params.Username = document.getElementById('userOrigUsername').value; await api('updateUser', params); toast('Saved ' + params.Name); }
+    if (activeUserMode === 'add') {
+      const result = await api('addUser', params);
+      toast(result.emailSent
+        ? 'Added ' + params.Name + ' — an invite email is on its way.'
+        : 'Added ' + params.Name + ', but the invite email failed to send — use "Resend reset email" to try again.');
+    } else { params.Username = document.getElementById('userOrigUsername').value; await api('updateUser', params); toast('Saved ' + params.Name); }
     closeUserModal(); await refreshAllData(); renderUsersPage();
   } catch (err) { errEl.textContent = err.message; } finally { clearBtnLoading(btn, activeUserMode === 'add' ? 'Add person' : 'Save changes'); }
 }
