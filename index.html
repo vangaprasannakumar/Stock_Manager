@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f8fafc" id="metaThemeColor">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="app-version" content="2.3.0">
+<meta name="app-version" content="2.3.1">
 <link rel="manifest" href="./manifest.json">
 <title>CALGAS Capacitors — Stock Management</title>
 <link rel="icon" href="https://i.postimg.cc/HxdkG3R1/CALGAS-CAPACITORS-LOGO-192x192.jpg">
@@ -141,6 +141,7 @@
   .link-btn:hover { color: var(--blue-deep); text-decoration: underline; }
   .link-btn:disabled { color: var(--ink-faint); cursor: not-allowed; text-decoration: none; }
   .auth-foot { display: flex; justify-content: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line-soft); }
+  .auth-foot-split { justify-content: space-between; gap: 16px; }
 
   .btn-primary { 
     width: 100%; background: linear-gradient(135deg, var(--blue), var(--blue-deep)); color: #fff; border-radius: var(--radius-sm); padding: 12px 20px; font-size: 14.5px; font-weight: 600; letter-spacing: 0.02em; box-shadow: var(--shadow-glow); transition: all 0.2s var(--ease); 
@@ -506,12 +507,12 @@
     <h1>Sign in</h1>
     <p class="lede">Raw material and finished goods stock, in one place.</p>
     <form id="loginForm">
-      <div class="field"><label for="loginUsername">Username</label><input type="text" id="loginUsername" autocomplete="username" required></div>
+      <div class="field"><label for="loginUsername">Username or email</label><input type="text" id="loginUsername" autocomplete="username" required></div>
       <div class="field"><label for="loginPassword">Password</label><input type="password" id="loginPassword" autocomplete="current-password" required></div>
       <div class="form-error" id="loginError"></div>
       <button type="submit" class="btn-primary" id="loginSubmit">Sign in</button>
     </form>
-    <div class="auth-foot"><button class="link-btn" id="showForgotBtn">Forgot password?</button></div>
+    <div class="auth-foot auth-foot-split"><button class="link-btn" id="showForgotBtn">Forgot password?</button><button class="link-btn" id="showEnterCodeBtn">Already have a code?</button></div>
   </div>
 </div>
 
@@ -519,9 +520,9 @@
   <div class="auth-card">
     <div class="auth-brand"><img class="js-company-logo-full" alt=""><div class="auth-brand-sub">Password reset</div></div>
     <h1>Forgot password</h1>
-    <p class="lede">Enter your username — if the account has an email on file, we'll send a 6-digit code.</p>
+    <p class="lede">Enter your username or email — if the account has an email on file, we'll send a 6-digit code.</p>
     <form id="forgotForm">
-      <div class="field"><label for="forgotUsername">Username</label><input type="text" id="forgotUsername" autocomplete="username" required></div>
+      <div class="field"><label for="forgotUsername">Username or email</label><input type="text" id="forgotUsername" autocomplete="username" required></div>
       <div class="form-error" id="forgotError"></div>
       <button type="submit" class="btn-primary" id="forgotSubmit">Send code</button>
     </form>
@@ -533,9 +534,9 @@
   <div class="auth-card">
     <div class="auth-brand"><img class="js-company-logo-full" alt=""><div class="auth-brand-sub">Password reset</div></div>
     <h1>Enter your code</h1>
-    <p class="lede">Check your email for the 6-digit code, then set a new password.</p>
+    <p class="lede">Enter your username or email, the 6-digit code from your inbox, and a new password.</p>
     <form id="resetForm">
-      <input type="hidden" id="resetUsername">
+      <div class="field"><label for="resetUsername">Username or email</label><input type="text" id="resetUsername" autocomplete="username" required></div>
       <div class="field"><label for="resetOtp">Verification code</label><input type="text" id="resetOtp" class="otp-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required></div>
       <div class="field"><label for="resetNewPassword">New password</label><input type="password" id="resetNewPassword" autocomplete="new-password" minlength="6" required><div class="hint">At least 6 characters.</div></div>
       <div class="form-error" id="resetError"></div>
@@ -636,7 +637,7 @@
     <section class="page hidden" id="page-rm">
       <div class="page-head"><h2>Raw Material Stock</h2><p>BOPP/MPP film, contactors, consumables and packing — from film to finished can.</p></div>
       <div class="toolbar">
-        <input type="search" id="rmSearch" placeholder="Search code or name…">
+        <input type="search" id="rmSearch" placeholder="Search ID, code or name…">
         <select id="rmCategoryFilter"></select>
         <select id="rmStatusFilter">
           <option value="All">All statuses</option><option value="NeedsAttention">Needs attention</option>
@@ -651,6 +652,7 @@
       <div>
         <table>
           <thead><tr>
+            <th class="sortable" data-col="idNo">ID No.</th>
             <th class="sortable" data-col="code">Code</th>
             <th class="sortable" data-col="name">Name</th>
             <th class="sortable" data-col="category">Category</th>
@@ -667,7 +669,7 @@
     <section class="page hidden" id="page-fg">
       <div class="page-head"><h2>FG Stock</h2><p>Finished capacitors — KVAR power-factor banks and MFD film capacitors.</p></div>
       <div class="toolbar">
-        <input type="search" id="fgSearch" placeholder="Search code or name…">
+        <input type="search" id="fgSearch" placeholder="Search ID, code or name…">
         <select id="fgCategoryFilter"></select>
         <select id="fgStatusFilter">
           <option value="All">All statuses</option><option value="NeedsAttention">Needs attention</option>
@@ -682,6 +684,7 @@
       <div>
         <table>
           <thead><tr>
+            <th class="sortable" data-col="idNo">ID No.</th>
             <th class="sortable" data-col="code">Code</th>
             <th class="sortable" data-col="name">Name</th>
             <th class="sortable" data-col="category">Family</th>
@@ -828,7 +831,7 @@ if ('serviceWorker' in navigator) {
 }
 
 const RM_CONFIG_UI = {
-  key: 'rm', codeField: 'RM_Code', nameField: 'RM_Name', categoryField: 'Category',
+  key: 'rm', codeField: 'RM_Code', idField: 'ID_No.', nameField: 'RM_Name', categoryField: 'Category',
   unitField: 'Unit', reorderField: 'ReorderLevel',
   txnTypes: ['Receipt', 'Issue', 'Adjustment', 'Return'],
   addAction: 'addRMTransaction', ledgerAction: 'getRMLedger', masterKey: 'rmMaster', stockKey: 'rmStock',
@@ -846,7 +849,7 @@ const RM_CONFIG_UI = {
   ]
 };
 const FG_CONFIG_UI = {
-  key: 'fg', codeField: 'FG_Code', nameField: 'FG_Name', categoryField: 'FG_Family',
+  key: 'fg', codeField: 'FG_Code', idField: 'ID_No.', nameField: 'FG_Name', categoryField: 'FG_Family',
   unitField: 'Unit', reorderField: 'ReorderLevel',
   txnTypes: ['Production', 'Dispatch', 'Adjustment', 'Return'],
   addAction: 'addFGTransaction', ledgerAction: 'getFGLedger', masterKey: 'fgMaster', stockKey: 'fgStock',
@@ -893,7 +896,7 @@ const state = {
   rmMaster: [], fgMaster: [], rmStock: [], fgStock: [], departments: [], users: [],
   rmSearch: '', fgSearch: '', rmCategory: 'All', fgCategory: 'All', rmStatus: 'All', fgStatus: 'All',
   rmPage: 1, fgPage: 1, rmShowInactive: false, fgShowInactive: false,
-  rmSort: { col: 'code', dir: 'asc' }, fgSort: { col: 'code', dir: 'asc' },
+  rmSort: { col: 'idNo', dir: 'asc' }, fgSort: { col: 'idNo', dir: 'asc' },
   userSearch: '', canEditMaster: false, isDarkMode: false
 };
 let activeTxnConfig = null;
@@ -1115,18 +1118,33 @@ async function handleLogout() {
 /* ---------- Forgot / reset password ---------- */
 function showForgotScreen() { hideAllAuthScreens(); document.getElementById('forgotForm').reset(); document.getElementById('forgotError').textContent = ''; document.getElementById('forgotScreen').classList.remove('hidden'); }
 function backToLogin() { hideAllAuthScreens(); document.getElementById('loginScreen').classList.remove('hidden'); }
+// Shared by both entry points into the OTP screen: handleForgotSubmit just
+// sent a fresh code (prefill + start the resend cooldown), while
+// showEnterCodeScreen assumes the person already has one sitting in their
+// inbox (blank field, resend available immediately — no code was just sent).
+function showResetScreen(identifier, justSent) {
+  document.getElementById('resetForm').reset();
+  document.getElementById('resetUsername').value = identifier || '';
+  document.getElementById('resetError').textContent = '';
+  hideAllAuthScreens(); document.getElementById('resetScreen').classList.remove('hidden');
+  if (justSent) { startOtpCooldown(); } else {
+    clearInterval(otpCooldownTimer);
+    const btn = document.getElementById('resendOtpBtn'); btn.disabled = false; btn.textContent = 'Resend code';
+  }
+}
+function showEnterCodeScreen() { showResetScreen('', false); }
 async function handleForgotSubmit(e) {
   e.preventDefault(); const username = document.getElementById('forgotUsername').value.trim(); const errEl = document.getElementById('forgotError'); const btn = document.getElementById('forgotSubmit');
   errEl.textContent = ''; setBtnLoading(btn, 'Sending…');
   try {
     await api('requestPasswordReset', { username: username });
-    document.getElementById('resetForm').reset(); document.getElementById('resetUsername').value = username; document.getElementById('resetError').textContent = '';
-    hideAllAuthScreens(); document.getElementById('resetScreen').classList.remove('hidden'); startOtpCooldown(); toast('If that account has an email on file, a code is on its way.');
+    showResetScreen(username, true); toast('If that account has an email on file, a code is on its way.');
   } catch (err) { errEl.textContent = err.message; } finally { clearBtnLoading(btn, 'Send code'); }
 }
 async function handleResendOtp() {
-  const username = document.getElementById('resetUsername').value;
-  try { await api('requestPasswordReset', { username: username }); toast('Code resent.'); startOtpCooldown(); } catch (err) { toast(err.message, true); }
+  const username = document.getElementById('resetUsername').value.trim();
+  if (!username) { toast('Enter your username or email first.', true); return; }
+  try { await api('requestPasswordReset', { username: username }); toast('Code sent.'); startOtpCooldown(); } catch (err) { toast(err.message, true); }
 }
 function startOtpCooldown() {
   const btn = document.getElementById('resendOtpBtn'); let seconds = 60; btn.disabled = true; btn.textContent = 'Resend code (' + seconds + 's)';
@@ -1190,7 +1208,7 @@ function mergeStock(master, stockList, config, includeInactive) {
     .map(function (m) {
       const code = m[config.codeField]; const s = byCode[code];
       return {
-        code: code, name: m[config.nameField], category: m[config.categoryField],
+        code: code, idNo: m[config.idField] || '', name: m[config.nameField], category: m[config.categoryField],
         unit: m[config.unitField] || 'NOS', balance: s ? Number(s.CurrentBalance) || 0 : 0,
         reorder: Number(m[config.reorderField]) || 0, status: s ? s.StockStatus : 'No Activity', active: isActiveValue(m.Active)
       };
@@ -1255,7 +1273,7 @@ function renderStockTable(config) {
   const sortState = isRM ? state.rmSort : state.fgSort; let page = isRM ? state.rmPage : state.fgPage;
 
   let rows = mergeStock(state[config.masterKey], state[config.stockKey], config, showInactive);
-  if (search) { const q = search.toLowerCase(); rows = rows.filter(function (r) { return r.code.toLowerCase().indexOf(q) > -1 || (r.name || '').toLowerCase().indexOf(q) > -1; }); }
+  if (search) { const q = search.toLowerCase(); rows = rows.filter(function (r) { return r.code.toLowerCase().indexOf(q) > -1 || (r.idNo || '').toLowerCase().indexOf(q) > -1 || (r.name || '').toLowerCase().indexOf(q) > -1; }); }
   if (category && category !== 'All') rows = rows.filter(function (r) { return r.category === category; });
   if (status && status !== 'All') {
     if (status === 'NeedsAttention') rows = rows.filter(function (r) { return r.status === 'Low' || r.status === 'Critical'; });
@@ -1282,6 +1300,7 @@ function renderStockTable(config) {
     }
 
     return '<tr data-code="' + escapeHtml(r.code) + '" data-key="' + config.key + '"' + (r.active ? '' : ' class="row-inactive"') + '>' +
+      '<td class="mono">' + escapeHtml(r.idNo || '—') + '</td>' +
       '<td class="mono">' + escapeHtml(r.code) + '</td>' +
       '<td>' + escapeHtml(r.name || '') + (r.active ? '' : ' <span class="muted">(inactive)</span>') + '</td>' +
       '<td><span class="tag' + tagExtra + '">' + escapeHtml(r.category || '—') + '</span></td>' +
@@ -1292,7 +1311,7 @@ function renderStockTable(config) {
   }).join('');
 
   const bodyEl = document.getElementById(isRM ? 'rmTableBody' : 'fgTableBody');
-  bodyEl.innerHTML = bodyHtml || ('<tr><td colspan="6" class="empty">' + emptyStateMessage(config, isRM, search, category, status, showInactive) + '</td></tr>');
+  bodyEl.innerHTML = bodyHtml || ('<tr><td colspan="7" class="empty">' + emptyStateMessage(config, isRM, search, category, status, showInactive) + '</td></tr>');
 
   document.getElementById(isRM ? 'rmPageInfo' : 'fgPageInfo').textContent = total === 0 ? '0 items' : ('Showing ' + (start + 1) + '–' + Math.min(start + PAGE_SIZE, total) + ' of ' + total);
   document.getElementById(isRM ? 'rmPrevBtn' : 'fgPrevBtn').disabled = page <= 1; document.getElementById(isRM ? 'rmNextBtn' : 'fgNextBtn').disabled = page >= totalPages;
@@ -1473,7 +1492,7 @@ function openItemModal(key, code) {
   const isEdit = !!code; const item = isEdit ? master.find(function (m) { return m[config.codeField] === code; }) : null; if (isEdit && !item) return;
   activeItemConfig = config; activeItemMode = isEdit ? 'edit' : 'add'; activeItemCode = code || null;
 
-  document.getElementById('itemModalEyebrow').textContent = (key === 'rm' ? 'RAW MATERIAL' : 'FINISHED GOODS') + ' · ' + (isEdit ? 'EDIT ITEM' : 'NEW ITEM');
+  document.getElementById('itemModalEyebrow').textContent = (key === 'rm' ? 'RAW MATERIAL' : 'FINISHED GOODS') + (isEdit && item[config.idField] ? ' · ' + item[config.idField] : '') + ' · ' + (isEdit ? 'EDIT ITEM' : 'NEW ITEM');
   document.getElementById('itemModalTitle').textContent = isEdit ? (item[config.nameField] || code) : 'New item';
   document.getElementById('itemCode').value = isEdit ? code : ''; document.getElementById('itemCode').disabled = isEdit;
 
@@ -1578,13 +1597,13 @@ function exportToExcel(config) {
   const isRM = config.key === 'rm'; const search = isRM ? state.rmSearch : state.fgSearch; const category = isRM ? state.rmCategory : state.fgCategory;
   const status = isRM ? state.rmStatus : state.fgStatus; const showInactive = isRM ? state.rmShowInactive : state.fgShowInactive;
   let rows = mergeStock(state[config.masterKey], state[config.stockKey], config, showInactive);
-  if (search) { const q = search.toLowerCase(); rows = rows.filter(function (r) { return r.code.toLowerCase().indexOf(q) > -1 || (r.name || '').toLowerCase().indexOf(q) > -1; }); }
+  if (search) { const q = search.toLowerCase(); rows = rows.filter(function (r) { return r.code.toLowerCase().indexOf(q) > -1 || (r.idNo || '').toLowerCase().indexOf(q) > -1 || (r.name || '').toLowerCase().indexOf(q) > -1; }); }
   if (category && category !== 'All') rows = rows.filter(function (r) { return r.category === category; });
   if (status && status !== 'All') rows = (status === 'NeedsAttention') ? rows.filter(function (r) { return r.status === 'Low' || r.status === 'Critical'; }) : rows.filter(function (r) { return r.status === status; });
   if (rows.length === 0) { toast('Nothing to export.', true); return; }
   const catHeader = isRM ? 'Category' : 'Family';
-  const ws = XLSX.utils.json_to_sheet(rows.map(function (r) { return { 'Code': r.code, 'Name': r.name || '', [catHeader]: r.category || '', 'Balance': r.balance, 'Unit': r.unit, 'Status': r.status, 'Minimum Quantity': r.reorder, 'Active': r.active ? 'Yes' : 'No' }; }));
-  ws['!cols'] = [{ wch: 24 }, { wch: 32 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 8 }];
+  const ws = XLSX.utils.json_to_sheet(rows.map(function (r) { return { 'ID No.': r.idNo || '', 'Code': r.code, 'Name': r.name || '', [catHeader]: r.category || '', 'Balance': r.balance, 'Unit': r.unit, 'Status': r.status, 'Minimum Quantity': r.reorder, 'Active': r.active ? 'Yes' : 'No' }; }));
+  ws['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 32 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 8 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, isRM ? 'RM Stock' : 'FG Stock');
   XLSX.writeFile(wb, (isRM ? 'RM_Stock_' : 'FG_Stock_') + new Date().toISOString().slice(0, 10) + '.xlsx');
 }
@@ -1600,6 +1619,7 @@ function wireStaticEvents() {
   window.addEventListener('resize', debounce(updateNavIndicator, 100));
 
   document.getElementById('showForgotBtn').addEventListener('click', showForgotScreen);
+  document.getElementById('showEnterCodeBtn').addEventListener('click', showEnterCodeScreen);
   document.getElementById('backToLoginBtn').addEventListener('click', backToLogin);
   document.getElementById('forgotForm').addEventListener('submit', handleForgotSubmit);
   document.getElementById('resetForm').addEventListener('submit', handleResetSubmit);
