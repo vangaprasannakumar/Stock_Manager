@@ -84,6 +84,7 @@
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
   .mono { font-family: var(--font-mono); }
   .muted { color: var(--ink-soft); }
+  .freshness-label { color: var(--ink-faint); font-size: 12.5px; align-self: center; white-space: nowrap; }
 
   @keyframes slideUpFade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes modalPop { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -646,6 +647,7 @@
         <label class="check-inline"><input type="checkbox" id="rmShowInactive"> Show inactive</label>
         <button class="btn-ghost" id="rmExportBtn"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px;margin-right:6px"><path d="M8 2v8m0 0L5 7m3 3l3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12v1.5A1.5 1.5 0 0 0 4.5 15h7a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Export</button>
         <button class="btn-ghost" id="rmRefreshBtn">Refresh</button>
+        <span class="freshness-label" id="rmFreshness"></span>
         <button class="btn-primary btn-compact hidden add-btn-spacer" id="rmAddItemBtn">+ Add RM item</button>
       </div>
       <p class="toolbar-hint">Click a row to post a stock transaction. Clock icon shows history, pencil edits the item.</p>
@@ -678,6 +680,7 @@
         <label class="check-inline"><input type="checkbox" id="fgShowInactive"> Show inactive</label>
         <button class="btn-ghost" id="fgExportBtn"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px;margin-right:6px"><path d="M8 2v8m0 0L5 7m3 3l3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12v1.5A1.5 1.5 0 0 0 4.5 15h7a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Export</button>
         <button class="btn-ghost" id="fgRefreshBtn">Refresh</button>
+        <span class="freshness-label" id="fgFreshness"></span>
         <button class="btn-primary btn-compact hidden add-btn-spacer" id="fgAddItemBtn">+ Add FG item</button>
       </div>
       <p class="toolbar-hint">Click a row to post a stock transaction. Clock icon shows history, pencil edits the item.</p>
@@ -897,6 +900,7 @@ const state = {
   rmSearch: '', fgSearch: '', rmCategory: 'All', fgCategory: 'All', rmStatus: 'All', fgStatus: 'All',
   rmPage: 1, fgPage: 1, rmShowInactive: false, fgShowInactive: false,
   rmSort: { col: 'idNo', dir: 'asc' }, fgSort: { col: 'idNo', dir: 'asc' },
+  rmLastUpdated: null, fgLastUpdated: null,
   userSearch: '', canEditMaster: false, isDarkMode: false
 };
 let activeTxnConfig = null;
@@ -1088,6 +1092,7 @@ async function boot() {
   try { await refreshAllData(); } catch (err) { toast(err.message, true); }
   populateCategoryFilters();
   navigateTo('home');
+  setInterval(function () { updateFreshnessLabel('rm'); updateFreshnessLabel('fg'); }, 20000);
 }
 
 async function refreshAllData() {
@@ -1096,6 +1101,45 @@ async function refreshAllData() {
   const results = await Promise.all(calls);
   state.rmMaster = results[0]; state.fgMaster = results[1]; state.rmStock = results[2]; state.fgStock = results[3]; state.departments = results[4];
   if (results[5]) state.users = results[5];
+  state.rmLastUpdated = new Date(); state.fgLastUpdated = new Date();
+}
+
+// Runs every time someone actually looks at the RM/FG page (see navigateTo)
+// so nobody's staring at a balance another department already changed.
+// Same account, same role for everyone — Admin/Manager/Supervisor all see
+// live data here, none of this is gated by role.
+const STOCK_REFRESH_MIN_GAP_MS = 5000; // don't re-fetch on rapid tab-flicking
+async function refreshStockData(key) {
+  const config = key === 'rm' ? RM_CONFIG_UI : FG_CONFIG_UI;
+  const lastField = key + 'LastUpdated';
+  if (state[lastField] && (Date.now() - state[lastField].getTime()) < STOCK_REFRESH_MIN_GAP_MS) return;
+  try {
+    const [master, stock] = await Promise.all([api(key === 'rm' ? 'getRMMaster' : 'getFGMaster'), api(key === 'rm' ? 'getRMCurrentStock' : 'getFGCurrentStock')]);
+    state[config.masterKey] = master; state[config.stockKey] = stock; state[lastField] = new Date();
+    if (key === 'rm') renderRMPage(); else renderFGPage();
+    renderHome();
+    updateFreshnessLabel(key);
+  } catch (err) {
+    // Quiet failure on purpose — this runs in the background on every tab
+    // switch, so an intrusive error toast every time the network hiccups
+    // would be worse than just leaving the "Updated Xm ago" label to age.
+    console.error('Background refresh failed (' + key + ')', err);
+  }
+}
+
+function timeAgo(date) {
+  if (!date) return 'never';
+  const secs = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (secs < 10) return 'just now';
+  if (secs < 60) return secs + 's ago';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return mins + (mins === 1 ? ' min ago' : ' mins ago');
+  const hrs = Math.floor(mins / 60);
+  return hrs + (hrs === 1 ? ' hr ago' : ' hrs ago');
+}
+function updateFreshnessLabel(key) {
+  const el = document.getElementById(key + 'Freshness');
+  if (el) el.textContent = 'Updated ' + timeAgo(state[key + 'LastUpdated']);
 }
 
 /* =========================================================================
@@ -1173,8 +1217,8 @@ function navigateTo(page) {
   document.querySelectorAll('.nav-link').forEach(function (el) { el.classList.toggle('active', el.dataset.page === page); });
   document.querySelectorAll('.page').forEach(function (el) { el.classList.toggle('hidden', el.id !== 'page-' + page); });
   if (page === 'home') renderHome();
-  if (page === 'rm') renderRMPage();
-  if (page === 'fg') renderFGPage();
+  if (page === 'rm') { renderRMPage(); updateFreshnessLabel('rm'); refreshStockData('rm'); }
+  if (page === 'fg') { renderFGPage(); updateFreshnessLabel('fg'); refreshStockData('fg'); }
   if (page === 'users') renderUsersPage();
   updateNavIndicator();
 }
@@ -1427,6 +1471,7 @@ async function handleTxnSubmit(e) {
 
   try {
     const result = await api(config.addAction, payload); applyLocalStockUpdate(config, code, result.newBalance);
+    state[config.key + 'LastUpdated'] = new Date(); updateFreshnessLabel(config.key);
     closeTxnModal(); toast('Posted ' + txnType + ' · ' + code + ' · new balance ' + formatNum(result.newBalance));
     if (config.key === 'rm') renderRMPage(); else renderFGPage();
     renderHome();
@@ -1679,7 +1724,7 @@ function wireStockPageEvents(kind) {
     if (actionBtn) { e.stopPropagation(); const tr = actionBtn.closest('tr[data-code]'); if (actionBtn.dataset.action === 'history') openLedgerModal(kind, tr.dataset.code); else openItemModal(kind, tr.dataset.code); return; }
     const tr = e.target.closest('tr[data-code]'); if (tr) openTxnModal(kind, tr.dataset.code);
   });
-  document.getElementById(els.refresh).addEventListener('click', async function () { const btn = this; setBtnLoading(btn, 'Refreshing…', true); try { await refreshAllData(); render(); renderHome(); toast('Refreshed.'); } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn); } });
+  document.getElementById(els.refresh).addEventListener('click', async function () { const btn = this; setBtnLoading(btn, 'Refreshing…', true); try { await refreshAllData(); render(); renderHome(); updateFreshnessLabel(kind); toast('Refreshed.'); } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn); } });
   document.getElementById(els.export).addEventListener('click', function () { exportToExcel(isRM ? RM_CONFIG_UI : FG_CONFIG_UI); });
   document.getElementById(els.add).addEventListener('click', function () { openItemModal(kind, null); });
 }
