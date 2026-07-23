@@ -1,9 +1,17 @@
-// A simple service worker just to satisfy the PWA install requirement
-self.addEventListener('install', (e) => {
-    console.log('[Service Worker] Install');
+// A simple service worker just to satisfy the PWA install requirement.
+// No caching here on purpose — the data is real-time via Apps Script, so
+// anything cached would just show stale stock numbers.
+self.addEventListener('install', () => {
+  self.skipWaiting(); // don't wait for every open tab to close before a
+                       // newly deployed version of this file takes over
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(self.clients.claim()); // take control of already-open tabs
 });
 
 self.addEventListener('fetch', (e) => {
-    // Pass-through fetch (We aren't aggressively caching right now because the data is real-time via Apps Script)
-    e.respondWith(fetch(e.request));
+  // Pass-through fetch — every request (API calls, fonts, assets) goes
+  // straight to the network, unmodified.
+  e.respondWith(fetch(e.request));
 });
