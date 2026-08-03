@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="app-version" content="2.3.1">
 <link rel="manifest" href="./manifest.json">
-<title>CALGAS Capacitors | Stock Management</title>
+<title>CALGAS Capacitors — Stock Management</title>
 <link rel="icon" href="https://i.postimg.cc/HxdkG3R1/CALGAS-CAPACITORS-LOGO-192x192.jpg">
 <link rel="apple-touch-icon" href="https://i.postimg.cc/76wZvXdD/CALGAS-CAPACITORS-LOGO-512x512.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -840,7 +840,7 @@ const RM_CONFIG_UI = {
   addAction: 'addRMTransaction', ledgerAction: 'getRMLedger', masterKey: 'rmMaster', stockKey: 'rmStock',
   addItemAction: 'addRMItem', updateItemAction: 'updateRMItem',
   deleteItemAction: 'deleteRMItem', reactivateItemAction: 'reactivateRMItem',
-  staticCategories: ['RM-PPF', 'CONTACTORS', 'KVAR NUSE', 'MFD NUSE', 'CONSUMABLES', 'MOULDING CHRGS', 'SERVICES', 'SCRAP', 'PACKING'],
+  staticCategories: ['AL CAN', 'BOPP FILM', 'MPP FILM', 'POLYSTER FILM', 'CORE-PBT', 'CORE-PP', 'RESIN', 'RESISTORS', 'SOLDER WIRE','WIRE','SCRAP','PACKING','ZINC WIRE','OTHER'],
   itemFields: [
     { key: 'RM_Name', label: 'Name', type: 'text', required: true },
     { key: 'Category', label: 'Category', type: 'select', options: [], required: true },
@@ -1298,15 +1298,6 @@ function populateCategoryFilters() {
   const fgCats = FG_CONFIG_UI.staticCategories || Array.from(new Set(state.fgMaster.map(function (m) { return m[FG_CONFIG_UI.categoryField]; }).filter(Boolean))).sort();
   document.getElementById('fgCategoryFilter').innerHTML = '<option value="All">All families</option>' + fgCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
 }
-  document.getElementById('rmCategoryFilter').innerHTML = '<option value="All">All categories</option>' + rmCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
-  
-  // FG Filters
-  let fgCats = Array.from(new Set(state.fgMaster.map(function (m) { return m[FG_CONFIG_UI.categoryField]; }).filter(Boolean))).sort();
-  if (fgCats.length === 0 && FG_CONFIG_UI.staticCategories) {
-    fgCats = FG_CONFIG_UI.staticCategories;
-  }
-  document.getElementById('fgCategoryFilter').innerHTML = '<option value="All">All families</option>' + fgCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
-}
 function renderRMPage() { renderStockTable(RM_CONFIG_UI); }
 function renderFGPage() { renderStockTable(FG_CONFIG_UI); }
 
@@ -1535,6 +1526,11 @@ function closeLedgerModal() { document.getElementById('ledgerModal').classList.a
 /* =========================================================================
    ITEM (MASTER) MODAL
    ========================================================================= */
+function renderField_(f, val) {
+  const id = 'itemField_' + f.key;
+  if (f.type === 'select') { return '<div class="field"><label for="' + id + '">' + f.label + (f.required ? ' *' : '') + '</label><select id="' + id + '" data-key="' + f.key + '"' + (f.required ? ' required' : '') + '><option value="">Select…</option>' + f.options.map(function (o) { return '<option value="' + escapeHtml(o) + '"' + (String(val) === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('') + '</select></div>'; }
+  return '<div class="field"><label for="' + id + '">' + f.label + (f.required ? ' *' : '') + '</label><input type="' + f.type + '" id="' + id + '" data-key="' + f.key + '" value="' + escapeHtml(val) + '"' + (f.placeholder ? ' placeholder="' + escapeHtml(f.placeholder) + '"' : '') + (f.required ? ' required' : '') + (f.type === 'number' ? ' step="any"' : '') + '></div>';
+}
 function openItemModal(key, code) {
   const config = key === 'rm' ? RM_CONFIG_UI : FG_CONFIG_UI; const master = state[config.masterKey];
   
@@ -1547,9 +1543,6 @@ function openItemModal(key, code) {
   
   const dropdownField = config.itemFields.find(function(f) { return f.type === 'select' && f.key === config.categoryField; });
   if (dropdownField) dropdownField.options = catOptions;
-
-  // ... (leave the rest of the function as it was)
-  if (dropdownField) dropdownField.options = dynamicCats;
 
   const isEdit = !!code; const item = isEdit ? master.find(function (m) { return m[config.codeField] === code; }) : null; if (isEdit && !item) return;
   activeItemConfig = config; activeItemMode = isEdit ? 'edit' : 'add'; activeItemCode = code || null;
