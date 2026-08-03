@@ -1290,11 +1290,14 @@ function setStatsLoading() {
    RM / FG PAGE RENDERING
    ========================================================================= */
 function populateCategoryFilters() {
-  // RM Filters
-  let rmCats = Array.from(new Set(state.rmMaster.map(function (m) { return m[RM_CONFIG_UI.categoryField]; }).filter(Boolean))).sort();
-  if (rmCats.length === 0 && RM_CONFIG_UI.staticCategories) {
-    rmCats = RM_CONFIG_UI.staticCategories;
-  }
+  // Use static categories for RM, or fall back to dynamic if none exist
+  const rmCats = RM_CONFIG_UI.staticCategories || Array.from(new Set(state.rmMaster.map(function (m) { return m[RM_CONFIG_UI.categoryField]; }).filter(Boolean))).sort();
+  document.getElementById('rmCategoryFilter').innerHTML = '<option value="All">All categories</option>' + rmCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
+  
+  // Use static categories for FG, or fall back to dynamic if none exist
+  const fgCats = FG_CONFIG_UI.staticCategories || Array.from(new Set(state.fgMaster.map(function (m) { return m[FG_CONFIG_UI.categoryField]; }).filter(Boolean))).sort();
+  document.getElementById('fgCategoryFilter').innerHTML = '<option value="All">All families</option>' + fgCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
+}
   document.getElementById('rmCategoryFilter').innerHTML = '<option value="All">All categories</option>' + rmCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
   
   // FG Filters
@@ -1532,26 +1535,20 @@ function closeLedgerModal() { document.getElementById('ledgerModal').classList.a
 /* =========================================================================
    ITEM (MASTER) MODAL
    ========================================================================= */
-function renderField_(f, val) {
-  const id = 'itemField_' + f.key;
-  if (f.type === 'select') { return '<div class="field"><label for="' + id + '">' + f.label + (f.required ? ' *' : '') + '</label><select id="' + id + '" data-key="' + f.key + '"' + (f.required ? ' required' : '') + '><option value="">Select…</option>' + f.options.map(function (o) { return '<option value="' + escapeHtml(o) + '"' + (String(val) === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('') + '</select></div>'; }
-  return '<div class="field"><label for="' + id + '">' + f.label + (f.required ? ' *' : '') + '</label><input type="' + f.type + '" id="' + id + '" data-key="' + f.key + '" value="' + escapeHtml(val) + '"' + (f.placeholder ? ' placeholder="' + escapeHtml(f.placeholder) + '"' : '') + (f.required ? ' required' : '') + (f.type === 'number' ? ' step="any"' : '') + '></div>';
-}
 function openItemModal(key, code) {
   const config = key === 'rm' ? RM_CONFIG_UI : FG_CONFIG_UI; const master = state[config.masterKey];
   
-  // Create dynamic categories from existing items
-  let dynamicCats = Array.from(new Set(master.map(function (m) { return m[config.categoryField]; }).filter(Boolean))).sort();
-  
-  // FIX: Fallback to static categories if no dynamic categories exist
-  if (dynamicCats.length === 0 && config.staticCategories) {
-    dynamicCats = config.staticCategories;
+  // Update: Always use the hardcoded static categories if they exist. 
+  // If they don't (like for FG), fall back to reading the sheet dynamically.
+  let catOptions = config.staticCategories;
+  if (!catOptions || catOptions.length === 0) {
+    catOptions = Array.from(new Set(master.map(function (m) { return m[config.categoryField]; }).filter(Boolean))).sort();
   }
   
   const dropdownField = config.itemFields.find(function(f) { return f.type === 'select' && f.key === config.categoryField; });
-  if (dropdownField) dropdownField.options = dynamicCats;
+  if (dropdownField) dropdownField.options = catOptions;
 
-  // ... (rest of the function remains the same)
+  // ... (leave the rest of the function as it was)
   if (dropdownField) dropdownField.options = dynamicCats;
 
   const isEdit = !!code; const item = isEdit ? master.find(function (m) { return m[config.codeField] === code; }) : null; if (isEdit && !item) return;
