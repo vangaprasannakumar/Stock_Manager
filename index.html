@@ -289,6 +289,7 @@
     text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; 
     color: var(--ink-soft); padding: 16px 24px; border-bottom: 2px solid var(--line-soft); 
     background: var(--paper); position: sticky; top: -32px; z-index: 20; 
+    vertical-align: middle; /* ADD THIS LINE */
   }
   
   /* Sorting Styles */
@@ -660,7 +661,7 @@
             <th class="sortable" data-col="category">Category</th>
             <th class="sortable" data-col="balance" style="text-align:right">Balance</th>
             <th class="sortable" data-col="status">Health / Status</th>
-            <th class="actions-head" style="text-align:center">Actions</th>
+            <th class="actions-head" style="width: 120px; text-align: center; vertical-align: middle;">Actions</th>
           </tr></thead>
           <tbody id="rmTableBody"></tbody>
         </table>
