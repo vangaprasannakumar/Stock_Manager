@@ -1290,9 +1290,18 @@ function setStatsLoading() {
    RM / FG PAGE RENDERING
    ========================================================================= */
 function populateCategoryFilters() {
-  const rmCats = Array.from(new Set(state.rmMaster.map(function (m) { return m[RM_CONFIG_UI.categoryField]; }).filter(Boolean))).sort();
+  // RM Filters
+  let rmCats = Array.from(new Set(state.rmMaster.map(function (m) { return m[RM_CONFIG_UI.categoryField]; }).filter(Boolean))).sort();
+  if (rmCats.length === 0 && RM_CONFIG_UI.staticCategories) {
+    rmCats = RM_CONFIG_UI.staticCategories;
+  }
   document.getElementById('rmCategoryFilter').innerHTML = '<option value="All">All categories</option>' + rmCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
-  const fgCats = Array.from(new Set(state.fgMaster.map(function (m) { return m[FG_CONFIG_UI.categoryField]; }).filter(Boolean))).sort();
+  
+  // FG Filters
+  let fgCats = Array.from(new Set(state.fgMaster.map(function (m) { return m[FG_CONFIG_UI.categoryField]; }).filter(Boolean))).sort();
+  if (fgCats.length === 0 && FG_CONFIG_UI.staticCategories) {
+    fgCats = FG_CONFIG_UI.staticCategories;
+  }
   document.getElementById('fgCategoryFilter').innerHTML = '<option value="All">All families</option>' + fgCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
 }
 function renderRMPage() { renderStockTable(RM_CONFIG_UI); }
@@ -1530,8 +1539,19 @@ function renderField_(f, val) {
 }
 function openItemModal(key, code) {
   const config = key === 'rm' ? RM_CONFIG_UI : FG_CONFIG_UI; const master = state[config.masterKey];
-  const dynamicCats = Array.from(new Set(master.map(function (m) { return m[config.categoryField]; }).filter(Boolean))).sort();
+  
+  // Create dynamic categories from existing items
+  let dynamicCats = Array.from(new Set(master.map(function (m) { return m[config.categoryField]; }).filter(Boolean))).sort();
+  
+  // FIX: Fallback to static categories if no dynamic categories exist
+  if (dynamicCats.length === 0 && config.staticCategories) {
+    dynamicCats = config.staticCategories;
+  }
+  
   const dropdownField = config.itemFields.find(function(f) { return f.type === 'select' && f.key === config.categoryField; });
+  if (dropdownField) dropdownField.options = dynamicCats;
+
+  // ... (rest of the function remains the same)
   if (dropdownField) dropdownField.options = dynamicCats;
 
   const isEdit = !!code; const item = isEdit ? master.find(function (m) { return m[config.codeField] === code; }) : null; if (isEdit && !item) return;
