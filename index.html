@@ -2,20 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f8fafc" id="metaThemeColor">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="app-version" content="2.3.1">
+<meta name="app-version" content="2.4.0">
 <link rel="manifest" href="./manifest.json">
 <title>CALGAS Capacitors — Stock Management</title>
 <link rel="icon" href="https://i.postimg.cc/HxdkG3R1/CALGAS-CAPACITORS-LOGO-192x192.jpg">
 <link rel="apple-touch-icon" href="https://i.postimg.cc/76wZvXdD/CALGAS-CAPACITORS-LOGO-512x512.jpg">
+<link rel="preload" href="https://i.postimg.cc/HxdkG3R1/CALGAS-CAPACITORS-LOGO-192x192.jpg" as="image">
+<link rel="dns-prefetch" href="https://script.google.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<!-- Chart.js for Dashboard Analytics -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   :root {
     /* Light Mode Palette */
@@ -91,16 +91,49 @@
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
   @keyframes pulseFade { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-  @keyframes charge { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.95); } }
+  @keyframes charge { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.85; transform: scale(0.97); } }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes orbFloat { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(20px, -16px) scale(1.08); } }
+  @keyframes splashGlow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: -2px; margin-right: 8px; }
   .spinner-dark { border-color: rgba(15,23,42,0.15); border-top-color: var(--ink); }
 
-  #initialLoader { background: var(--paper); backdrop-filter: blur(10px); }
-  .boot-loader { position: relative; width: 56px; height: 56px; }
-  .boot-ring { position: absolute; inset: 0; animation: spin 1s linear infinite; }
-  .boot-mark { position: absolute; inset: 0; margin: auto; width: 32px; height: 32px; object-fit: contain; border-radius: 6px; animation: charge 1.5s ease-in-out infinite; }
+  #initialLoader {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--paper);
+    transition: opacity 0.55s var(--ease), visibility 0.55s;
+  }
+  #initialLoader.loader-exit { opacity: 0; visibility: hidden; pointer-events: none; }
+  .splash-orbs { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .splash-orb { position: absolute; border-radius: 50%; filter: blur(72px); animation: orbFloat 9s ease-in-out infinite; }
+  .splash-orb.orb-blue { width: 340px; height: 340px; background: rgba(59, 130, 246, 0.22); top: -80px; left: -60px; }
+  .splash-orb.orb-copper { width: 280px; height: 280px; background: rgba(245, 158, 11, 0.18); bottom: -60px; right: -40px; animation-delay: -3s; }
+  [data-theme="dark"] .splash-orb.orb-blue { background: rgba(59, 130, 246, 0.14); }
+  [data-theme="dark"] .splash-orb.orb-copper { background: rgba(245, 158, 11, 0.1); }
+  .splash-content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 24px; animation: slideUpFade 0.7s var(--spring) both; }
+  .splash-logo-wrap { position: relative; width: 92px; height: 92px; margin-bottom: 24px; }
+  .splash-ring {
+    position: absolute; inset: -3px; border-radius: 22px; padding: 2px;
+    background: conic-gradient(from 0deg, var(--blue), var(--violet), var(--copper), var(--blue));
+    animation: spin 2.4s linear infinite; opacity: 0.9;
+  }
+  .splash-logo-inner {
+    position: absolute; inset: 3px; background: var(--paper); border-radius: 18px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    box-shadow: var(--shadow-lift);
+  }
+  .splash-logo-inner img { width: 66px; height: 66px; object-fit: contain; border-radius: 12px; animation: charge 2.2s ease-in-out infinite; }
+  .splash-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; color: var(--ink); }
+  .splash-sub { font-size: 11.5px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 0.14em; margin: 0 0 28px; animation: splashGlow 2.4s ease-in-out infinite; }
+  .splash-progress { width: min(260px, 78vw); height: 4px; background: var(--line-soft); border-radius: 99px; overflow: hidden; margin-bottom: 12px; box-shadow: inset 0 1px 2px rgba(15,23,42,0.06); }
+  .splash-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--blue), var(--violet)); border-radius: 99px; transition: width 0.45s var(--ease); position: relative; }
+  .splash-progress-bar::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent); animation: shimmer 1.4s ease infinite; background-size: 200% 100%; }
+  .splash-status { font-size: 12.5px; font-weight: 500; color: var(--ink-soft); min-height: 18px; margin: 0; }
+
+  #appProgressBar { position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: linear-gradient(90deg, var(--blue), var(--violet)); z-index: 10000; opacity: 0; transition: opacity 0.2s, width 0.3s var(--ease); pointer-events: none; }
+  #appProgressBar.active { opacity: 1; }
 
   .center-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 100; position: relative; }
   
@@ -223,7 +256,7 @@
   
   .theme-btn { padding: 8px; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; }
 
-  .page { flex: 1; overflow-y: auto; padding: 32px; animation: slideUpFade 0.5s var(--spring) forwards; }
+  .page { flex: 1; overflow-y: auto; padding: 32px; animation: slideUpFade 0.5s var(--spring) forwards; content-visibility: auto; contain-intrinsic-size: auto 600px; }
   .page-head { margin-bottom: 32px; }
   .page-head h2 { font-size: 26px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.02em; background: linear-gradient(90deg, var(--ink), var(--ink-soft)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .page-head p { font-size: 14.5px; color: var(--ink-soft); margin: 0; font-weight: 500; }
@@ -235,8 +268,11 @@
   .stat-card { 
     background: var(--panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); 
-    transition: all 0.3s var(--spring); animation: slideUpFade 0.5s var(--spring) backwards; 
+    transition: all 0.3s var(--spring); animation: slideUpFade 0.5s var(--spring) backwards;
+    position: relative; overflow: hidden;
   }
+  .stat-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--blue), var(--violet), var(--copper)); opacity: 0; transition: opacity 0.3s; }
+  .stat-card.clickable:hover::after { opacity: 1; }
   [data-theme="dark"] .stat-card { background: var(--panel); }
   
   .stat-grid .stat-card:nth-child(1) { animation-delay: 0.05s; }
@@ -274,6 +310,12 @@
     background-repeat: no-repeat; background-position: 14px center; background-size: 16px;
   }
   .toolbar input[type="search"]:focus { border-color: var(--blue); box-shadow: 0 0 0 4px var(--blue-soft), var(--shadow); outline: none; }
+  .toolbar input[type="date"], .toolbar input[type="text"] {
+    padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 500;
+    background: var(--panel); color: var(--ink); box-shadow: var(--shadow-sm); transition: all 0.2s var(--ease);
+  }
+  .toolbar input[type="date"]:focus, .toolbar input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 4px var(--blue-soft), var(--shadow); outline: none; }
+  .toolbar-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
   .toolbar select { padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 600; background: var(--panel); color: var(--ink); box-shadow: var(--shadow-sm); cursor: pointer; transition: all 0.2s; }
   .toolbar select:hover { border-color: var(--blue); }
   .toolbar .add-btn-spacer { margin-left: auto; }
@@ -293,7 +335,13 @@
   }
   
   /* Sorting Styles */
-  .sortable { cursor: pointer; position: relative; padding-right: 22px !important; user-select: none; transition: color 0.2s; }
+  /* No position:relative here on purpose — thead th above already sets
+     position:sticky, which (like relative) is a valid containing block for
+     the ::after arrow below. Adding relative here used to win over thead
+     th's sticky by CSS specificity (a class beats two type selectors),
+     which is why only the Actions header — the one column without this
+     class — was actually freezing while every other header scrolled away. */
+  .sortable { cursor: pointer; padding-right: 22px !important; user-select: none; transition: color 0.2s; }
   .sortable:hover { color: var(--ink); }
   .sortable::after { content: '↕'; position: absolute; right: 8px; opacity: 0.2; font-family: sans-serif; font-size: 14px; top: 50%; transform: translateY(-50%); }
   .sortable.asc::after { content: '↑'; opacity: 1; color: var(--blue); }
@@ -328,6 +376,7 @@
      so they keep the roomier default. */
   #page-rm table, #page-fg table { border-spacing: 0 4px; margin-top: -4px; }
   #page-rm tbody td, #page-fg tbody td { padding: 10px 20px; }
+  #page-rm tbody tr, #page-fg tbody tr { animation: none; }
   #page-rm tbody tr[data-code]:hover, #page-fg tbody tr[data-code]:hover { transform: none; box-shadow: var(--shadow); }
   
   .skeleton-bar { height: 16px; border-radius: 6px; width: 100%; background: linear-gradient(90deg, var(--line-soft) 25%, var(--line) 37%, var(--line-soft) 63%); background-size: 400% 100%; animation: shimmer 1.5s ease infinite; }
@@ -380,6 +429,15 @@
   .pagination .btn-ghost { padding: 6px 14px; }
   .pagination .btns { display: flex; gap: 10px; }
 
+  /* "Needs attention" panel — used since the original file but never
+     actually styled, so it sat flat/borderless next to the polished stat
+     cards above it. Matches the same card language (radius, shadow,
+     hover) the rest of the dashboard uses. */
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; animation: slideUpFade 0.5s var(--spring) both; animation-delay: 0.22s; }
+  .panel-head { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; padding: 20px 24px; border-bottom: 1px solid var(--line-soft); color: var(--ink); }
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 48px 24px; color: var(--ink-faint); font-size: 14px; font-weight: 500; text-align: center; }
+  .empty-state svg { color: var(--ok); opacity: 0.7; }
+
   /* Modals */
   .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 100; animation: fadeIn 0.3s var(--ease); }
   .modal { width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); padding: 32px; animation: modalPop 0.4s var(--spring) both; }
@@ -395,6 +453,14 @@
   .modal-actions { display: flex; justify-content: flex-end; gap: 12px; }
   .modal-actions-split { display: flex; justify-content: space-between; align-items: center; }
   .modal-actions-right { display: flex; gap: 12px; }
+
+  /* Confirm dialog — replaces native confirm() for delete/deactivate/
+     recalculate prompts so they match the rest of the app instead of
+     breaking out to an unstyled browser popup. */
+  .confirm-icon-wrap { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+  .confirm-icon-wrap.tone-danger { background: linear-gradient(135deg, var(--critical-soft), rgba(239, 68, 68, 0.1)); color: var(--critical); }
+  .confirm-icon-wrap.tone-default { background: linear-gradient(135deg, var(--blue-soft), rgba(59, 130, 246, 0.1)); color: var(--blue); }
+  .confirm-message { font-size: 14.5px; color: var(--ink-soft); line-height: 1.6; margin: 0 0 4px; }
   
   #itemForm details, #userForm details { margin: 8px 0 20px; background: var(--paper); border-radius: var(--radius-sm); padding: 16px; border: 1px solid var(--line); }
   #itemForm summary, #userForm summary { cursor: pointer; font-size: 13.5px; font-weight: 700; color: var(--blue); list-style: none; user-select: none; }
@@ -486,10 +552,26 @@
 </head>
 <body>
 
-<div id="initialLoader" class="center-screen">
-  <div class="boot-loader">
-    <svg class="boot-ring" viewBox="0 0 46 46" fill="none"><circle cx="23" cy="23" r="19" stroke="var(--line)" stroke-width="4"/><circle cx="23" cy="23" r="19" stroke="var(--blue)" stroke-width="4" stroke-linecap="round" stroke-dasharray="30 220"/></svg>
-    <img class="boot-mark js-company-logo-icon" alt="">
+<div id="appProgressBar" aria-hidden="true"></div>
+
+<div id="initialLoader" aria-live="polite" aria-busy="true">
+  <div class="splash-orbs">
+    <div class="splash-orb orb-blue"></div>
+    <div class="splash-orb orb-copper"></div>
+  </div>
+  <div class="splash-content">
+    <div class="splash-logo-wrap">
+      <div class="splash-ring"></div>
+      <div class="splash-logo-inner">
+        <img class="js-company-logo-icon" alt="">
+      </div>
+    </div>
+    <h2 class="splash-title js-company-name"></h2>
+    <p class="splash-sub">Stock Management</p>
+    <div class="splash-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="splashProgress">
+      <div class="splash-progress-bar" id="splashProgressBar"></div>
+    </div>
+    <p class="splash-status" id="splashStatus">Starting up…</p>
   </div>
 </div>
 
@@ -801,6 +883,15 @@
       <div><div class="modal-eyebrow" id="ledgerModalEyebrow"></div><h3 id="ledgerModalTitle"></h3><div class="mono muted hidden" id="ledgerModalCode"></div></div>
       <button class="icon-btn" id="ledgerCloseBtn" aria-label="Close">✕</button>
     </div>
+    <div class="toolbar" style="margin-bottom:14px">
+      <span class="toolbar-label">From</span>
+      <input type="date" id="ledgerDateFrom">
+      <span class="toolbar-label">To</span>
+      <input type="date" id="ledgerDateTo">
+      <input type="text" id="ledgerUserFilter" placeholder="Filter by user…" style="flex:1;min-width:160px">
+      <button class="btn-ghost" id="ledgerClearFiltersBtn">Clear</button>
+      <button class="btn-ghost" id="ledgerExportBtn"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px;margin-right:6px"><path d="M8 2v8m0 0L5 7m3 3l3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12v1.5A1.5 1.5 0 0 0 4.5 15h7a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Export</button>
+    </div>
     <div class="ledger-table-wrap">
       <table>
         <thead><tr><th>Date</th><th>Type</th><th style="text-align:center">Qty</th><th>Dept</th><th>Ref / Supp</th><th>User</th></tr></thead>
@@ -812,26 +903,65 @@
 
 <div id="toastContainer"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<div id="confirmModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:400px">
+    <div class="confirm-icon-wrap" id="confirmIconWrap">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    </div>
+    <h3 id="confirmTitle" style="font-size:19px;font-weight:700;margin:0 0 8px;letter-spacing:-0.01em">Are you sure?</h3>
+    <p class="confirm-message" id="confirmMessage"></p>
+    <div class="modal-actions" style="margin-top:20px;padding-top:20px">
+      <button type="button" class="btn-ghost" id="confirmCancelBtn">Cancel</button>
+      <button type="button" class="btn-danger" id="confirmOkBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
 /* =========================================================================
    CONFIG & PWA SETUP
    ========================================================================= */
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.4.0';
 const GOOGLE_API_URL = 'https://script.google.com/macros/s/AKfycbwgMLr8mcNt402VpdDNkrrPpa0VuhwLs5xdZAtuJx9Iy_LQcKxXpxCO_mZfbCOGPn6Z/exec';
 const COMPANY_NAME = 'CALGAS CAPACITORS';
 const COMPANY_LOGO_ICON_URL = 'https://i.postimg.cc/HxdkG3R1/CALGAS-CAPACITORS-LOGO-192x192.jpg';
 const COMPANY_LOGO_FULL_URL = 'https://i.postimg.cc/Twf38QFx/calgas-logo-768x240.jpg';
 const PAGE_SIZE = 50;
+const API_TIMEOUT_MS = 30000;
 const REDUCE_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Register Service Worker for PWA if supported
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('./sw.js').catch(function(err) { console.log('SW registration missed', err); });
+const _scriptCache = {};
+function loadScript(src) {
+  if (_scriptCache[src]) return _scriptCache[src];
+  _scriptCache[src] = new Promise(function (resolve, reject) {
+    const s = document.createElement('script');
+    s.src = src; s.async = true;
+    s.onload = function () { resolve(); };
+    s.onerror = function () { reject(new Error('Failed to load ' + src)); };
+    document.head.appendChild(s);
   });
+  return _scriptCache[src];
+}
+
+let chartJsReady = typeof Chart !== 'undefined';
+let chartJsPromise = null;
+function ensureChartJs() {
+  if (chartJsReady) return Promise.resolve();
+  if (!chartJsPromise) {
+    chartJsPromise = loadScript('https://cdn.jsdelivr.net/npm/chart.js').then(function () { chartJsReady = true; });
+  }
+  return chartJsPromise;
+}
+
+// Register Service Worker for PWA if supported (deferred so it never blocks boot)
+if ('serviceWorker' in navigator) {
+  const registerSw = function () {
+    navigator.serviceWorker.register('./sw.js').catch(function (err) { console.log('SW registration missed', err); });
+  };
+  if ('requestIdleCallback' in window) requestIdleCallback(registerSw, { timeout: 3000 });
+  else window.addEventListener('load', registerSw, { once: true });
 }
 
 const RM_CONFIG_UI = {
@@ -906,11 +1036,15 @@ const state = {
 };
 let activeTxnConfig = null;
 let activeItemConfig = null, activeItemMode = null, activeItemCode = null;
-let activeLedgerConfig = null;
+let activeLedgerConfig = null, activeLedgerCode = null;
 let activeUserMode = null;
 let otpCooldownTimer = null;
 let rmChartInstance = null;
 let fgChartInstance = null;
+let freshnessIntervalId = null;
+let _dataGeneration = 0;
+let _mergeCache = {};
+const _inflight = new Map();
 
 /* =========================================================================
    API
@@ -920,19 +1054,45 @@ async function api(action, params) {
   if (GOOGLE_API_URL.indexOf('PASTE_YOUR') === 0) {
     throw new Error('Backend URL not configured — edit GOOGLE_API_URL at the top of the script.');
   }
+  const cacheKey = action + ':' + JSON.stringify(params);
+  if (_inflight.has(cacheKey)) return _inflight.get(cacheKey);
+  const promise = _apiRequest(action, params).finally(function () { _inflight.delete(cacheKey); });
+  _inflight.set(cacheKey, promise);
+  return promise;
+}
+
+async function _apiRequest(action, params, retries) {
+  retries = retries !== undefined ? retries : 1;
   const body = Object.assign({ action: action }, params);
   if (state.session && action !== 'login' && action !== 'requestPasswordReset' && action !== 'resetPasswordWithOtp') {
     body.token = state.session.token;
   }
-  const res = await fetch(GOOGLE_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(body)
-  });
-  const json = await res.json();
-  if (!json.success) throw new Error(json.error || 'Request failed');
-  return json.data;
+  const controller = new AbortController();
+  const timer = setTimeout(function () { controller.abort(); }, API_TIMEOUT_MS);
+  try {
+    const res = await fetch(GOOGLE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Request failed');
+    return json.data;
+  } catch (err) {
+    const retryable = err.name === 'AbortError' || (err.message && err.message.indexOf('fetch') > -1);
+    if (retries > 0 && retryable) {
+      await new Promise(function (r) { setTimeout(r, 700); });
+      return _apiRequest(action, params, retries - 1);
+    }
+    if (err.name === 'AbortError') throw new Error('Request timed out — check your connection and try again.');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
+
+function invalidateMergeCache() { _dataGeneration++; _mergeCache = {}; }
 
 /* =========================================================================
    SESSION & THEME
@@ -1009,6 +1169,27 @@ function toast(message, isError) {
   requestAnimationFrame(function () { el.classList.add('show'); });
   setTimeout(function () { el.classList.remove('show'); setTimeout(function () { el.remove(); }, 300); }, 3500);
 }
+
+// Styled stand-in for window.confirm() — used for deactivate/delete/
+// recalculate prompts so they match the rest of the app instead of
+// breaking out to an unstyled browser popup. Resolves true/false; Escape,
+// the backdrop, or Cancel all resolve false.
+let _confirmResolve = null;
+function confirmDialog(message, opts) {
+  opts = opts || {};
+  document.getElementById('confirmTitle').textContent = opts.title || 'Are you sure?';
+  document.getElementById('confirmMessage').textContent = message;
+  const okBtn = document.getElementById('confirmOkBtn');
+  okBtn.textContent = opts.confirmText || 'Confirm';
+  okBtn.className = opts.danger === false ? 'btn-primary btn-compact' : 'btn-danger';
+  document.getElementById('confirmIconWrap').className = 'confirm-icon-wrap ' + (opts.danger === false ? 'tone-default' : 'tone-danger');
+  document.getElementById('confirmModal').classList.remove('hidden');
+  return new Promise(function (resolve) { _confirmResolve = resolve; });
+}
+function _settleConfirm(result) {
+  document.getElementById('confirmModal').classList.add('hidden');
+  if (_confirmResolve) { const r = _confirmResolve; _confirmResolve = null; r(result); }
+}
 function animateCount(el, to) {
   el.classList.remove('pulse');
   if (REDUCE_MOTION) { el.textContent = formatNum(to); return; }
@@ -1030,7 +1211,44 @@ function clearBtnLoading(btn, finalText) {
   btn.disabled = false;
   btn.innerHTML = finalText !== undefined ? finalText : (btn.dataset.restoreHtml || btn.innerHTML);
 }
-function hideInitialLoader() { document.getElementById('initialLoader').classList.add('hidden'); }
+function setLoaderProgress(pct, message) {
+  const bar = document.getElementById('splashProgressBar');
+  const status = document.getElementById('splashStatus');
+  const progress = document.getElementById('splashProgress');
+  const clamped = Math.min(100, Math.max(0, pct));
+  if (bar) bar.style.width = clamped + '%';
+  if (progress) progress.setAttribute('aria-valuenow', String(Math.round(clamped)));
+  if (message && status) status.textContent = message;
+}
+function hideInitialLoader(finalMessage) {
+  return new Promise(function (resolve) {
+    const el = document.getElementById('initialLoader');
+    if (!el || el.classList.contains('hidden')) { resolve(); return; }
+    setLoaderProgress(100, finalMessage || 'Ready');
+    el.classList.add('loader-exit');
+    el.setAttribute('aria-busy', 'false');
+    setTimeout(function () { el.classList.add('hidden'); resolve(); }, REDUCE_MOTION ? 0 : 520);
+  });
+}
+function showAppProgress(pct) {
+  const bar = document.getElementById('appProgressBar');
+  if (!bar) return;
+  bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+  bar.classList.add('active');
+}
+function hideAppProgress() {
+  const bar = document.getElementById('appProgressBar');
+  if (!bar) return;
+  bar.style.width = '100%';
+  setTimeout(function () { bar.classList.remove('active'); bar.style.width = '0%'; }, 250);
+}
+function startFreshnessInterval() {
+  if (freshnessIntervalId) clearInterval(freshnessIntervalId);
+  freshnessIntervalId = setInterval(function () { updateFreshnessLabel('rm'); updateFreshnessLabel('fg'); }, 20000);
+}
+function stopFreshnessInterval() {
+  if (freshnessIntervalId) { clearInterval(freshnessIntervalId); freshnessIntervalId = null; }
+}
 function hideAllAuthScreens() { ['setupScreen', 'loginScreen', 'forgotScreen', 'resetScreen'].forEach(function (id) { document.getElementById(id).classList.add('hidden'); }); }
 function applyBranding() {
   document.querySelectorAll('.js-company-name').forEach(function (el) { el.textContent = COMPANY_NAME; });
@@ -1044,6 +1262,7 @@ function applyBranding() {
 window.addEventListener('DOMContentLoaded', init);
 
 async function init() {
+  setLoaderProgress(10, 'Initializing…');
   initTheme();
   applyBranding();
   document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
@@ -1052,16 +1271,19 @@ async function init() {
     document.querySelector('.rail').classList.add('collapsed');
   }
 
+  setLoaderProgress(22, 'Checking configuration…');
   if (GOOGLE_API_URL.indexOf('PASTE_YOUR') === 0) {
-    hideInitialLoader();
+    await hideInitialLoader();
     document.getElementById('setupScreen').classList.remove('hidden');
     return;
   }
 
+  setLoaderProgress(38, 'Restoring session…');
   const session = loadSession();
   if (session) {
     state.session = session;
     try {
+      setLoaderProgress(52, 'Verifying credentials…');
       const who = await api('whoAmI');
       state.session.role = who.role;
       state.session.department = who.department;
@@ -1069,12 +1291,13 @@ async function init() {
       return;
     } catch (err) { clearSession(); }
   }
-  hideInitialLoader();
+  setLoaderProgress(100, 'Ready');
+  await hideInitialLoader();
   document.getElementById('loginScreen').classList.remove('hidden');
 }
 
 async function boot() {
-  hideInitialLoader();
+  setLoaderProgress(62, 'Loading workspace…');
   hideAllAuthScreens();
   document.getElementById('appShell').classList.remove('hidden');
   document.getElementById('userName').textContent = state.session.name || state.session.username;
@@ -1090,19 +1313,35 @@ async function boot() {
   renderTableSkeleton('fgTableBody', 6, 6);
   setStatsLoading();
 
-  try { await refreshAllData(); } catch (err) { toast(err.message, true); }
+  setLoaderProgress(78, 'Fetching stock data…');
+  showAppProgress(30);
+  try {
+    await refreshAllData();
+    showAppProgress(85);
+  } catch (err) {
+    toast(err.message, true);
+  }
   populateCategoryFilters();
+  setLoaderProgress(94, 'Preparing dashboard…');
   navigateTo('home');
-  setInterval(function () { updateFreshnessLabel('rm'); updateFreshnessLabel('fg'); }, 20000);
+  startFreshnessInterval();
+  setLoaderProgress(100, 'Ready');
+  await hideInitialLoader();
+  hideAppProgress();
 }
 
 async function refreshAllData() {
-  const calls = [api('getRMMaster'), api('getFGMaster'), api('getRMCurrentStock'), api('getFGCurrentStock'), api('getDepartments')];
-  if (state.session.role === 'Admin') calls.push(api('getUsers'));
-  const results = await Promise.all(calls);
-  state.rmMaster = results[0]; state.fgMaster = results[1]; state.rmStock = results[2]; state.fgStock = results[3]; state.departments = results[4];
-  if (results[5]) state.users = results[5];
+  // One round trip instead of five-to-six parallel ones. Each separate
+  // api() call pays its own session validation (a Sessions-sheet read) and
+  // script-boot overhead even though they fire in parallel from here, so
+  // bundling everything into a single getBootstrap action is materially
+  // faster — especially noticeable right after login, on slower
+  // connections, and on every "Refresh" click.
+  const data = await api('getBootstrap');
+  state.rmMaster = data.rmMaster; state.fgMaster = data.fgMaster; state.rmStock = data.rmStock; state.fgStock = data.fgStock; state.departments = data.departments;
+  if (data.users) state.users = data.users;
   state.rmLastUpdated = new Date(); state.fgLastUpdated = new Date();
+  invalidateMergeCache();
 }
 
 // Runs every time someone actually looks at the RM/FG page (see navigateTo)
@@ -1117,6 +1356,7 @@ async function refreshStockData(key) {
   try {
     const [master, stock] = await Promise.all([api(key === 'rm' ? 'getRMMaster' : 'getFGMaster'), api(key === 'rm' ? 'getRMCurrentStock' : 'getFGCurrentStock')]);
     state[config.masterKey] = master; state[config.stockKey] = stock; state[lastField] = new Date();
+    invalidateMergeCache();
     if (key === 'rm') renderRMPage(); else renderFGPage();
     renderHome();
     updateFreshnessLabel(key);
@@ -1150,14 +1390,32 @@ async function handleLogin(e) {
   e.preventDefault();
   const errEl = document.getElementById('loginError'); const btn = document.getElementById('loginSubmit');
   errEl.textContent = ''; setBtnLoading(btn, 'Signing in…');
+  const loader = document.getElementById('initialLoader');
   try {
     const data = await api('login', { username: document.getElementById('loginUsername').value.trim(), password: document.getElementById('loginPassword').value });
-    saveSession(data); await boot();
+    saveSession(data);
+    if (loader) { loader.classList.remove('hidden', 'loader-exit'); loader.setAttribute('aria-busy', 'true'); }
+    setLoaderProgress(55, 'Signing you in…');
+    await boot();
   } catch (err) { errEl.textContent = err.message; } finally { clearBtnLoading(btn, 'Sign in'); }
 }
 async function handleLogout() {
-  try { await api('logout'); } catch (err) { /* ignore */ }
-  clearSession(); document.getElementById('appShell').classList.add('hidden'); hideAllAuthScreens(); document.getElementById('loginScreen').classList.remove('hidden'); document.getElementById('loginForm').reset();
+  const loader = document.getElementById('initialLoader');
+  if (loader) { loader.classList.remove('hidden', 'loader-exit'); loader.setAttribute('aria-busy', 'true'); }
+  setLoaderProgress(30, 'Signing you out…');
+  stopFreshnessInterval();
+  try { await api('logout'); } catch (err) { /* client-side logout proceeds regardless */ }
+  setLoaderProgress(70, 'Clearing your session…');
+  clearSession();
+  // Swap the DOM while it's still hidden behind the loader overlay, same as
+  // boot() does on the way in — so what fades away is the loader itself,
+  // never a raw jump-cut between screens.
+  document.getElementById('appShell').classList.add('hidden');
+  hideAllAuthScreens();
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginForm').reset();
+  await hideInitialLoader('See you soon');
+  toast('Signed out.');
 }
 
 /* ---------- Forgot / reset password ---------- */
@@ -1246,9 +1504,11 @@ function goToStockTab(kind, filterStatus) {
    STOCK MERGE & SORTING
    ========================================================================= */
 function mergeStock(master, stockList, config, includeInactive) {
+  const cacheKey = _dataGeneration + ':' + config.key + ':' + (includeInactive ? '1' : '0');
+  if (_mergeCache[cacheKey]) return _mergeCache[cacheKey].slice();
   const byCode = {};
   stockList.forEach(function (s) { byCode[s[config.codeField]] = s; });
-  return master
+  const result = master
     .filter(function (m) { return includeInactive || isActiveValue(m.Active); })
     .map(function (m) {
       const code = m[config.codeField]; const s = byCode[code];
@@ -1258,6 +1518,8 @@ function mergeStock(master, stockList, config, includeInactive) {
         reorder: Number(m[config.reorderField]) || 0, status: s ? s.StockStatus : 'No Activity', active: isActiveValue(m.Active)
       };
     });
+  _mergeCache[cacheKey] = result;
+  return result.slice();
 }
 function sortRows(rows, sortState) {
   return rows.sort(function(a, b) {
@@ -1384,11 +1646,11 @@ function renderHome() {
   const fgAlerts = fgRows.filter(function (r) { return r.status === 'Critical' || r.status === 'Low'; });
   animateCount(document.getElementById('statRmAlerts'), rmAlerts.length); animateCount(document.getElementById('statFgAlerts'), fgAlerts.length);
 
-  // Render Charts
-  if (typeof Chart !== 'undefined') {
+  // Render Charts (lazy-loaded — only fetched when Overview is shown)
+  ensureChartJs().then(function () {
     document.getElementById('dashboardCharts').classList.remove('hidden');
     renderCharts(rmRows, fgRows);
-  }
+  }).catch(function () { /* charts are optional */ });
 
   // Render Alert Cards
   const all = rmAlerts.map(function (r) { return Object.assign({}, r, { type: 'RM', key: 'rm' }); }).concat(fgAlerts.map(function (r) { return Object.assign({}, r, { type: 'FG', key: 'fg' }); })).sort(function (a, b) { return (a.status === 'Critical' ? 0 : 1) - (b.status === 'Critical' ? 0 : 1); }).slice(0, 25);
@@ -1483,6 +1745,7 @@ async function handleTxnSubmit(e) {
     const result = await api(config.addAction, payload); applyLocalStockUpdate(config, code, result.newBalance);
     state[config.key + 'LastUpdated'] = new Date(); updateFreshnessLabel(config.key);
     closeTxnModal(); toast('Posted ' + txnType + ' · ' + code + ' · new balance ' + formatNum(result.newBalance));
+    if (result.warning) toast(result.warning, true);
     if (config.key === 'rm') renderRMPage(); else renderFGPage();
     renderHome();
   } catch (err) { errEl.textContent = err.message; } finally { clearBtnLoading(btn, 'Post transaction'); }
@@ -1493,42 +1756,92 @@ function applyLocalStockUpdate(config, code, newBalance) {
   const status = newBalance <= 0 ? 'Critical' : (reorder > 0 && newBalance <= reorder ? 'Low' : 'OK');
   if (idx > -1) { list[idx].CurrentBalance = newBalance; list[idx].StockStatus = status; list[idx].LastUpdated = new Date().toISOString(); } 
   else { const row = { CurrentBalance: newBalance, StockStatus: status, LastUpdated: new Date().toISOString() }; row[config.codeField] = code; list.push(row); }
+  invalidateMergeCache();
 }
 
 /* =========================================================================
    LEDGER HISTORY MODAL
    ========================================================================= */
+function renderLedgerRow(r) {
+  const rawDate = r.Timestamp || r.Date; let dateStr = '—';
+  if (rawDate) { const d = new Date(rawDate); if (!isNaN(d.getTime())) { dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); } }
+
+  const txnTypeLower = (r.TxnType || '').toLowerCase(); const isReceipt = txnTypeLower === 'receipt';
+  const qtyClass = isReceipt ? 'qty-bold qty-positive' : 'qty-bold';
+
+  let refSuppHtml = escapeHtml(r.Reference || '—');
+  if (isReceipt && (r.Supplier || r.InvoiceNo)) {
+     const invDate = r.InvoiceDate ? String(r.InvoiceDate).substring(0, 10) : '';
+     refSuppHtml = '<div style="font-weight:700; color:var(--ink);">' + escapeHtml(r.Supplier || '—') + '</div><div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px; font-weight:500;">Inv: ' + escapeHtml(r.InvoiceNo || '') + ' ' + escapeHtml(invDate) + '</div>';
+  }
+
+  return '<tr><td class="mono" style="color:var(--ink-soft); font-size:13.5px;">' + dateStr + '</td><td><span class="txn-pill txn-type-' + escapeHtml(txnTypeLower) + '">' + escapeHtml(r.TxnType) + '</span></td><td class="' + qtyClass + '">' + formatNum(r.Qty) + '</td><td>' + escapeHtml(r.Department || '—') + '</td><td>' + refSuppHtml + '</td><td style="color:var(--ink-soft); font-weight:500;">' + escapeHtml(r.EnteredBy || '—') + '</td></tr>';
+}
+
+function currentLedgerFilters() {
+  return {
+    dateFrom: document.getElementById('ledgerDateFrom').value,
+    dateTo: document.getElementById('ledgerDateTo').value,
+    enteredBy: document.getElementById('ledgerUserFilter').value.trim()
+  };
+}
+
+async function loadLedgerRows() {
+  const config = activeLedgerConfig; const code = activeLedgerCode; if (!config || !code) return;
+  const tbody = document.getElementById('ledgerTableBody');
+  tbody.innerHTML = '<tr><td colspan="6" class="empty">Loading…</td></tr>';
+  const filters = currentLedgerFilters();
+  try {
+    const rows = await api(config.ledgerAction, Object.assign({ code: code, limit: 100 }, filters));
+    if (rows.length === 0) {
+      const hasFilters = filters.dateFrom || filters.dateTo || filters.enteredBy;
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">' + (hasFilters ? 'No transactions match these filters.' : 'No transactions yet for this item.') + '</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(renderLedgerRow).join('');
+  } catch (err) { tbody.innerHTML = '<tr><td colspan="6" class="empty">' + escapeHtml(err.message) + '</td></tr>'; }
+}
+
 async function openLedgerModal(key, code) {
-  const config = key === 'rm' ? RM_CONFIG_UI : FG_CONFIG_UI; activeLedgerConfig = config;
+  const config = key === 'rm' ? RM_CONFIG_UI : FG_CONFIG_UI; activeLedgerConfig = config; activeLedgerCode = code;
   const master = state[config.masterKey]; const item = master.find(function (m) { return m[config.codeField] === code; }); if (!item) return;
 
   document.getElementById('ledgerModalEyebrow').textContent = 'HISTORY';
   document.getElementById('ledgerModalTitle').textContent = 'Ledger: ' + (item[config.nameField] || code);
-  document.getElementById('ledgerTableBody').innerHTML = '<tr><td colspan="6" class="empty">Loading…</td></tr>';
+  document.getElementById('ledgerDateFrom').value = ''; document.getElementById('ledgerDateTo').value = ''; document.getElementById('ledgerUserFilter').value = '';
   document.getElementById('ledgerModal').classList.remove('hidden');
-
-  try {
-    const rows = await api(config.ledgerAction, { code: code, limit: 100 });
-    if (rows.length === 0) { document.getElementById('ledgerTableBody').innerHTML = '<tr><td colspan="6" class="empty">No transactions yet for this item.</td></tr>'; return; }
-    
-    document.getElementById('ledgerTableBody').innerHTML = rows.map(function (r) {
-      const rawDate = r.Timestamp || r.Date; let dateStr = '—';
-      if (rawDate) { const d = new Date(rawDate); if (!isNaN(d.getTime())) { dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); } }
-
-      const txnTypeLower = (r.TxnType || '').toLowerCase(); const isReceipt = txnTypeLower === 'receipt';
-      const qtyClass = isReceipt ? 'qty-bold qty-positive' : 'qty-bold';
-      
-      let refSuppHtml = escapeHtml(r.Reference || '—');
-      if (isReceipt && (r.Supplier || r.InvoiceNo)) {
-         const invDate = r.InvoiceDate ? String(r.InvoiceDate).substring(0, 10) : '';
-         refSuppHtml = '<div style="font-weight:700; color:var(--ink);">' + escapeHtml(r.Supplier || '—') + '</div><div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px; font-weight:500;">Inv: ' + escapeHtml(r.InvoiceNo || '') + ' ' + escapeHtml(invDate) + '</div>';
-      }
-
-      return '<tr><td class="mono" style="color:var(--ink-soft); font-size:13.5px;">' + dateStr + '</td><td><span class="txn-pill txn-type-' + escapeHtml(txnTypeLower) + '">' + escapeHtml(r.TxnType) + '</span></td><td class="' + qtyClass + '">' + formatNum(r.Qty) + '</td><td>' + escapeHtml(r.Department || '—') + '</td><td>' + refSuppHtml + '</td><td style="color:var(--ink-soft); font-weight:500;">' + escapeHtml(r.EnteredBy || '—') + '</td></tr>';
-    }).join('');
-  } catch (err) { document.getElementById('ledgerTableBody').innerHTML = '<tr><td colspan="6" class="empty">' + escapeHtml(err.message) + '</td></tr>'; }
+  await loadLedgerRows();
 }
-function closeLedgerModal() { document.getElementById('ledgerModal').classList.add('hidden'); activeLedgerConfig = null; }
+function closeLedgerModal() { document.getElementById('ledgerModal').classList.add('hidden'); activeLedgerConfig = null; activeLedgerCode = null; }
+
+// Exports the FULL filtered history (every matching row, not just the
+// ~100 shown in the modal) — a separate fetch with a high limit, using
+// the same backward-scanning getLedger_ on the backend so a narrow date
+// range stays cheap even on a large ledger.
+async function exportLedgerToExcel() {
+  const config = activeLedgerConfig; const code = activeLedgerCode; if (!config || !code) return;
+  const btn = document.getElementById('ledgerExportBtn');
+  setBtnLoading(btn, 'Exporting…');
+  try {
+    const filters = currentLedgerFilters();
+    const rows = await api(config.ledgerAction, Object.assign({ code: code, limit: 20000 }, filters));
+    if (rows.length === 0) { toast('Nothing to export for these filters.', true); return; }
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    const ws = XLSX.utils.json_to_sheet(rows.map(function (r) {
+      return {
+        'Date': r.Timestamp ? new Date(r.Timestamp).toISOString().slice(0, 10) : '',
+        'Type': r.TxnType || '', 'Qty': r.Qty, 'Department': r.Department || '',
+        'Reference': r.Reference || '', 'Supplier': r.Supplier || '', 'Invoice No': r.InvoiceNo || '',
+        'Invoice Date': r.InvoiceDate ? String(r.InvoiceDate).substring(0, 10) : '',
+        'Entered By': r.EnteredBy || ''
+      };
+    }));
+    ws['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 20 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 16 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'History');
+    const rangeSuffix = (filters.dateFrom || filters.dateTo) ? ('_' + (filters.dateFrom || 'start') + '_to_' + (filters.dateTo || 'now')) : '';
+    XLSX.writeFile(wb, code + '_History' + rangeSuffix + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+  } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn); }
+}
 
 /* =========================================================================
    ITEM (MASTER) MODAL
@@ -1582,16 +1895,19 @@ async function handleItemSubmit(e) {
   try {
     if (activeItemMode === 'add') { await api(config.addItemAction, params); const row = Object.assign({}, params); row.Active = true; state[config.masterKey].push(row); toast('Added ' + code); } 
     else { await api(config.updateItemAction, params); const list = state[config.masterKey]; const idx = list.findIndex(function (m) { return m[config.codeField] === code; }); if (idx > -1) Object.assign(list[idx], params); toast('Saved ' + code); }
+    invalidateMergeCache();
     closeItemModal(); populateCategoryFilters(); if (config.key === 'rm') renderRMPage(); else renderFGPage(); renderHome();
   } catch (err) { errEl.textContent = err.message; } finally { clearBtnLoading(btn, activeItemMode === 'add' ? 'Create item' : 'Save changes'); }
 }
 async function handleItemDelete() {
   const config = activeItemConfig; const code = activeItemCode; const mode = document.getElementById('itemDeleteBtn').dataset.mode; if (!code) return;
-  if (!confirm(mode === 'deactivate' ? 'Deactivate ' + code + '?' : 'Reactivate ' + code + '?')) return;
+  const ok = await confirmDialog(mode === 'deactivate' ? 'This item will be hidden from active lists but its history stays intact.' : 'This item will become available for new transactions again.', { title: (mode === 'deactivate' ? 'Deactivate' : 'Reactivate') + ' ' + code + '?', confirmText: mode === 'deactivate' ? 'Deactivate' : 'Reactivate', danger: mode === 'deactivate' });
+  if (!ok) return;
   const btn = document.getElementById('itemDeleteBtn'); const originalLabel = mode === 'deactivate' ? 'Deactivate' : 'Reactivate'; setBtnLoading(btn, mode === 'deactivate' ? 'Deactivating…' : 'Reactivating…', true);
   try {
     await api(mode === 'deactivate' ? config.deleteItemAction : config.reactivateItemAction, { code: code });
     const list = state[config.masterKey]; const idx = list.findIndex(function (m) { return m[config.codeField] === code; }); if (idx > -1) list[idx].Active = mode !== 'deactivate';
+    invalidateMergeCache();
     closeItemModal(); toast(code + (mode === 'deactivate' ? ' deactivated.' : ' reactivated.')); if (config.key === 'rm') renderRMPage(); else renderFGPage(); renderHome();
   } catch (err) { toast(err.message, true); clearBtnLoading(btn, originalLabel); }
 }
@@ -1640,7 +1956,8 @@ async function handleUserSubmit(e) {
 }
 async function handleUserActiveToggle() {
   const btn = document.getElementById('userDeactivateBtn'); const mode = btn.dataset.mode; const username = btn.dataset.username;
-  if (!confirm(mode === 'deactivate' ? 'Deactivate ' + username + '? They will no longer be able to sign in.' : 'Reactivate ' + username + '?')) return;
+  const ok = await confirmDialog(mode === 'deactivate' ? 'They will no longer be able to sign in until reactivated.' : 'They will be able to sign in again.', { title: (mode === 'deactivate' ? 'Deactivate' : 'Reactivate') + ' ' + username + '?', confirmText: mode === 'deactivate' ? 'Deactivate' : 'Reactivate', danger: mode === 'deactivate' });
+  if (!ok) return;
   try { await api(mode === 'deactivate' ? 'deactivateUser' : 'reactivateUser', { username: username }); toast(username + (mode === 'deactivate' ? ' deactivated.' : ' reactivated.')); closeUserModal(); await refreshAllData(); renderUsersPage(); } catch (err) { toast(err.message, true); }
 }
 async function handleResendInvite() {
@@ -1652,7 +1969,8 @@ async function handleResendInvite() {
    ADMIN — recalculate & EXPORT
    ========================================================================= */
 async function handleRecalc() {
-  if (!confirm('Rebuild current stock from the full ledger for both RM and FG? This can take a moment.')) return;
+  const ok = await confirmDialog('This rebuilds current stock from the full ledger for both RM and FG. It can take a moment on a large ledger.', { title: 'Recalculate stock?', confirmText: 'Recalculate', danger: false });
+  if (!ok) return;
   const btn = document.getElementById('adminRecalcBtn'); setBtnLoading(btn, 'Recalculating...');
   try {
     const rmResult = await api('recalculateRMStock'); const fgResult = await api('recalculateFGStock'); await refreshAllData(); renderHome();
@@ -1661,7 +1979,11 @@ async function handleRecalc() {
   } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn); }
 }
 function exportToExcel(config) {
-  if (typeof XLSX === 'undefined') { toast('Excel export library did not load.', true); return; }
+  loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function () {
+    _exportToExcelWorkbook(config);
+  }).catch(function () { toast('Excel export library did not load.', true); });
+}
+function _exportToExcelWorkbook(config) {
   const isRM = config.key === 'rm'; const search = isRM ? state.rmSearch : state.fgSearch; const category = isRM ? state.rmCategory : state.fgCategory;
   const status = isRM ? state.rmStatus : state.fgStatus; const showInactive = isRM ? state.rmShowInactive : state.fgShowInactive;
   let rows = mergeStock(state[config.masterKey], state[config.stockKey], config, showInactive);
@@ -1707,6 +2029,14 @@ function wireStaticEvents() {
   document.getElementById('itemForm').addEventListener('submit', handleItemSubmit); document.getElementById('itemDeleteBtn').addEventListener('click', handleItemDelete);
   ['itemCloseBtn', 'itemCancelBtn', 'itemModal'].forEach(id => document.getElementById(id).addEventListener('click', function(e) { if (e.target.id === id || id !== 'itemModal') closeItemModal(); }));
   ['ledgerCloseBtn', 'ledgerModal'].forEach(id => document.getElementById(id).addEventListener('click', function(e) { if (e.target.id === id || id !== 'ledgerModal') closeLedgerModal(); }));
+  document.getElementById('ledgerDateFrom').addEventListener('change', loadLedgerRows);
+  document.getElementById('ledgerDateTo').addEventListener('change', loadLedgerRows);
+  document.getElementById('ledgerUserFilter').addEventListener('input', debounce(loadLedgerRows, 250));
+  document.getElementById('ledgerClearFiltersBtn').addEventListener('click', function () {
+    document.getElementById('ledgerDateFrom').value = ''; document.getElementById('ledgerDateTo').value = ''; document.getElementById('ledgerUserFilter').value = '';
+    loadLedgerRows();
+  });
+  document.getElementById('ledgerExportBtn').addEventListener('click', exportLedgerToExcel);
 
   document.getElementById('addUserBtn').addEventListener('click', function () { openUserModal(null); });
   document.getElementById('userSearch').addEventListener('input', debounce(function (e) { state.userSearch = e.target.value; renderUsersPage(); }, 150));
@@ -1715,6 +2045,9 @@ function wireStaticEvents() {
   ['userCloseBtn', 'userCancelBtn', 'userModal'].forEach(id => document.getElementById(id).addEventListener('click', function(e) { if (e.target.id === id || id !== 'userModal') closeUserModal(); }));
 
   document.getElementById('adminRecalcBtn').addEventListener('click', handleRecalc);
+  document.getElementById('confirmOkBtn').addEventListener('click', function () { _settleConfirm(true); });
+  ['confirmCancelBtn', 'confirmModal'].forEach(id => document.getElementById(id).addEventListener('click', function (e) { if (e.target.id === id) _settleConfirm(false); }));
+  window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !document.getElementById('confirmModal').classList.contains('hidden')) _settleConfirm(false); });
   makeTablesResizable();
 }
 
