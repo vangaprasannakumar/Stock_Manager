@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f8fafc" id="metaThemeColor">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="app-version" content="2.4.0">
+<meta name="app-version" content="2.5.0">
 <link rel="manifest" href="./manifest.json">
 <title>CALGAS Capacitors — Stock Management</title>
 <link rel="icon" href="https://i.postimg.cc/HxdkG3R1/CALGAS-CAPACITORS-LOGO-192x192.jpg">
@@ -392,6 +392,10 @@
   .tag-role-admin { background: var(--blue-soft); color: var(--blue-deep); }
   .tag-role-manager { background: var(--copper-soft); color: var(--copper-deep); }
   .tag-role-supervisor { background: var(--violet-soft); color: var(--violet); }
+
+  .mail-badges { display: flex; gap: 5px; }
+  .mail-badge { display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 5px; letter-spacing: 0.03em; background: var(--line-soft); color: var(--ink-faint); }
+  .mail-badge.on { background: var(--ok-soft); color: var(--ok); }
 
   .status { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-ui); font-size: 12px; font-weight: 700; padding: 5px 14px; border-radius: 20px; border: 1px solid transparent; letter-spacing: 0.02em; }
   .status svg { flex-shrink: 0; }
@@ -792,7 +796,7 @@
       </div>
       <div>
         <table>
-          <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Department</th><th>Email</th><th>Status</th><th class="actions-head" style="text-align:center">Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Department</th><th>Email</th><th>Mail</th><th>Status</th><th class="actions-head" style="text-align:center">Actions</th></tr></thead>
           <tbody id="usersTableBody"></tbody>
         </table>
       </div>
@@ -863,11 +867,20 @@
       <div class="field" id="userDeptField"><label for="userDept">Department</label><select id="userDept"></select></div>
       <div class="field"><label for="userEmail">Email</label><input type="email" id="userEmail" required><div class="hint">Used for password reset codes.</div></div>
       <div class="field"><label for="userPhone">Phone (optional)</label><input type="text" id="userPhone"></div>
+      <div class="field">
+        <label>Daily stock report</label>
+        <div style="display:flex;gap:20px;margin-top:2px">
+          <label class="check-inline"><input type="checkbox" id="userDailyMailRM"> RM Stock</label>
+          <label class="check-inline"><input type="checkbox" id="userDailyMailFG"> FG Stock</label>
+        </div>
+        <div class="hint">Emails a full current-stock workbook every morning to whichever of these are checked.</div>
+      </div>
       <div class="form-note" id="userAddNote">A password-setup code will be emailed automatically once this person is added.</div>
       <div class="modal-error" id="userError"></div>
       <div class="modal-actions-split">
         <button type="button" class="btn-danger hidden" id="userDeactivateBtn">Deactivate</button>
         <div class="modal-actions-right">
+          <button type="button" class="btn-ghost hidden" id="userTestMailBtn" title="Sends using whatever's currently saved — save changes first if you just checked a box">Send test email</button>
           <button type="button" class="btn-ghost hidden" id="userResendBtn">Resend reset email</button>
           <button type="button" class="btn-ghost" id="userCancelBtn">Cancel</button>
           <button type="submit" class="btn-primary btn-compact" id="userSubmit">Add person</button>
@@ -923,7 +936,7 @@
 /* =========================================================================
    CONFIG & PWA SETUP
    ========================================================================= */
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.5.0';
 const GOOGLE_API_URL = 'https://script.google.com/macros/s/AKfycbwgMLr8mcNt402VpdDNkrrPpa0VuhwLs5xdZAtuJx9Iy_LQcKxXpxCO_mZfbCOGPn6Z/exec';
 const COMPANY_NAME = 'CALGAS CAPACITORS';
 const COMPANY_LOGO_ICON_URL = 'https://i.postimg.cc/HxdkG3R1/CALGAS-CAPACITORS-LOGO-192x192.jpg';
@@ -1157,6 +1170,14 @@ function isActiveValue(val) {
   if (val === false) return false;
   if (typeof val === 'string' && val.toUpperCase() === 'FALSE') return false;
   return true;
+}
+// Opposite default from isActiveValue on purpose — an opt-in flag like
+// DailyMailRM/DailyMailFG must default to false for a blank cell, unlike
+// Active which defaults to true. See isTruthyFlag_ in Code.gs.
+function isTruthyFlag(val) {
+  if (val === true) return true;
+  if (typeof val === 'string' && val.toUpperCase() === 'TRUE') return true;
+  return false;
 }
 function debounce(fn, wait) {
   let t; return function () { clearTimeout(t); const args = arguments; t = setTimeout(function () { fn.apply(null, args); }, wait); };
@@ -1920,10 +1941,12 @@ function renderUsersPage() {
   const q = state.userSearch.toLowerCase(); let rows = state.users;
   if (q) rows = rows.filter(function (u) { return (u.Name || '').toLowerCase().indexOf(q) > -1 || (u.Username || '').toLowerCase().indexOf(q) > -1; });
   const body = document.getElementById('usersTableBody');
-  if (rows.length === 0) { body.innerHTML = '<tr><td colspan="7" class="empty">No matching people.</td></tr>'; return; }
+  if (rows.length === 0) { body.innerHTML = '<tr><td colspan="8" class="empty">No matching people.</td></tr>'; return; }
   body.innerHTML = rows.map(function (u) {
     const active = isActiveValue(u.Active);
-    return '<tr data-username="' + escapeHtml(u.Username) + '"><td>' + escapeHtml(u.Name) + (active ? '' : ' <span class="muted">(inactive)</span>') + '</td><td class="mono">' + escapeHtml(u.Username) + '</td><td><span class="tag tag-role-' + u.Role.toLowerCase() + '">' + escapeHtml(u.Role) + '</span></td><td>' + escapeHtml(u.Department || '—') + '</td><td>' + escapeHtml(u.Email || '—') + '</td><td><span class="status status-' + (active ? 'ok' : 'none') + '">' + statusIcon(active ? 'ok' : 'none') + (active ? 'Active' : 'Inactive') + '</span></td><td class="actions-cell"><button class="row-action" data-action="edit-user" title="Edit">' + EDIT_ICON + '</button></td></tr>';
+    const wantsRM = isTruthyFlag(u.DailyMailRM), wantsFG = isTruthyFlag(u.DailyMailFG);
+    const mailBadges = '<div class="mail-badges"><span class="mail-badge' + (wantsRM ? ' on' : '') + '">RM</span><span class="mail-badge' + (wantsFG ? ' on' : '') + '">FG</span></div>';
+    return '<tr data-username="' + escapeHtml(u.Username) + '"><td>' + escapeHtml(u.Name) + (active ? '' : ' <span class="muted">(inactive)</span>') + '</td><td class="mono">' + escapeHtml(u.Username) + '</td><td><span class="tag tag-role-' + u.Role.toLowerCase() + '">' + escapeHtml(u.Role) + '</span></td><td>' + escapeHtml(u.Department || '—') + '</td><td>' + escapeHtml(u.Email || '—') + '</td><td>' + mailBadges + '</td><td><span class="status status-' + (active ? 'ok' : 'none') + '">' + statusIcon(active ? 'ok' : 'none') + (active ? 'Active' : 'Inactive') + '</span></td><td class="actions-cell"><button class="row-action" data-action="edit-user" title="Edit">' + EDIT_ICON + '</button></td></tr>';
   }).join('');
 }
 function openUserModal(username) {
@@ -1933,7 +1956,10 @@ function openUserModal(username) {
   document.getElementById('userUsername').value = isEdit ? user.Username : ''; document.getElementById('userUsername').disabled = isEdit;
   document.getElementById('userRole').value = isEdit ? user.Role : 'Supervisor'; document.getElementById('userDept').value = isEdit ? (user.Department || '') : '';
   document.getElementById('userEmail').value = isEdit ? (user.Email || '') : ''; document.getElementById('userPhone').value = isEdit ? (user.Phone || '') : '';
+  document.getElementById('userDailyMailRM').checked = isEdit ? isTruthyFlag(user.DailyMailRM) : false;
+  document.getElementById('userDailyMailFG').checked = isEdit ? isTruthyFlag(user.DailyMailFG) : false;
   document.getElementById('userAddNote').classList.toggle('hidden', isEdit); document.getElementById('userResendBtn').classList.toggle('hidden', !isEdit);
+  document.getElementById('userTestMailBtn').classList.toggle('hidden', !isEdit);
   document.getElementById('userSubmit').textContent = isEdit ? 'Save changes' : 'Add person'; document.getElementById('userError').textContent = '';
   const deactivateBtn = document.getElementById('userDeactivateBtn');
   if (isEdit) { const active = isActiveValue(user.Active); deactivateBtn.classList.remove('hidden'); deactivateBtn.textContent = active ? 'Deactivate' : 'Reactivate'; deactivateBtn.classList.toggle('positive', !active); deactivateBtn.dataset.mode = active ? 'deactivate' : 'reactivate'; deactivateBtn.dataset.username = username; } else { deactivateBtn.classList.add('hidden'); }
@@ -1943,7 +1969,7 @@ function closeUserModal() { document.getElementById('userModal').classList.add('
 async function handleUserSubmit(e) {
   e.preventDefault(); const errEl = document.getElementById('userError'); const btn = document.getElementById('userSubmit');
   errEl.textContent = ''; setBtnLoading(btn, activeUserMode === 'add' ? 'Adding…' : 'Saving…');
-  const params = { Username: document.getElementById('userUsername').value.trim(), Name: document.getElementById('userFormName').value.trim(), Role: document.getElementById('userRole').value, Department: document.getElementById('userDept').value, Email: document.getElementById('userEmail').value.trim(), Phone: document.getElementById('userPhone').value.trim() };
+  const params = { Username: document.getElementById('userUsername').value.trim(), Name: document.getElementById('userFormName').value.trim(), Role: document.getElementById('userRole').value, Department: document.getElementById('userDept').value, Email: document.getElementById('userEmail').value.trim(), Phone: document.getElementById('userPhone').value.trim(), DailyMailRM: document.getElementById('userDailyMailRM').checked, DailyMailFG: document.getElementById('userDailyMailFG').checked };
   try {
     if (activeUserMode === 'add') {
       const result = await api('addUser', params);
@@ -1963,6 +1989,11 @@ async function handleUserActiveToggle() {
 async function handleResendInvite() {
   const username = document.getElementById('userOrigUsername').value; const btn = document.getElementById('userResendBtn'); setBtnLoading(btn, 'Sending…', true);
   try { await api('adminResetUserPassword', { username: username }); toast('Reset email sent to ' + username + '.'); } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn, 'Resend reset email'); }
+}
+async function handleSendTestMail() {
+  const username = document.getElementById('userOrigUsername').value; const btn = document.getElementById('userTestMailBtn');
+  setBtnLoading(btn, 'Sending…', true);
+  try { const result = await api('sendTestStockMail', { username: username }); toast('Test email sent to ' + result.sentTo + '.'); } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn, 'Send test email'); }
 }
 
 /* =========================================================================
@@ -2041,7 +2072,7 @@ function wireStaticEvents() {
   document.getElementById('addUserBtn').addEventListener('click', function () { openUserModal(null); });
   document.getElementById('userSearch').addEventListener('input', debounce(function (e) { state.userSearch = e.target.value; renderUsersPage(); }, 150));
   document.getElementById('usersTableBody').addEventListener('click', function (e) { const btn = e.target.closest('.row-action'); if (btn) { const tr = btn.closest('tr[data-username]'); if (tr) openUserModal(tr.dataset.username); } });
-  document.getElementById('userForm').addEventListener('submit', handleUserSubmit); document.getElementById('userDeactivateBtn').addEventListener('click', handleUserActiveToggle); document.getElementById('userResendBtn').addEventListener('click', handleResendInvite);
+  document.getElementById('userForm').addEventListener('submit', handleUserSubmit); document.getElementById('userDeactivateBtn').addEventListener('click', handleUserActiveToggle); document.getElementById('userResendBtn').addEventListener('click', handleResendInvite); document.getElementById('userTestMailBtn').addEventListener('click', handleSendTestMail);
   ['userCloseBtn', 'userCancelBtn', 'userModal'].forEach(id => document.getElementById(id).addEventListener('click', function(e) { if (e.target.id === id || id !== 'userModal') closeUserModal(); }));
 
   document.getElementById('adminRecalcBtn').addEventListener('click', handleRecalc);
