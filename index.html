@@ -766,7 +766,8 @@
         <button class="btn-ghost" id="rmExportBtn"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px;margin-right:6px"><path d="M8 2v8m0 0L5 7m3 3l3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12v1.5A1.5 1.5 0 0 0 4.5 15h7a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Export</button>
         <button class="btn-ghost" id="rmRefreshBtn">Refresh</button>
         <span class="freshness-label" id="rmFreshness"></span>
-        <button class="btn-primary btn-compact hidden add-btn-spacer" id="rmAddItemBtn">+ Add RM item</button>
+        <button class="btn-ghost hidden add-btn-spacer" id="rmImportBtn"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px;margin-right:6px"><path d="M8 10V2m0 0L5 5m3-3 3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12v1.5A1.5 1.5 0 0 0 4.5 15h7a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Import</button>
+        <button class="btn-primary btn-compact hidden" id="rmAddItemBtn">+ Add RM item</button>
       </div>
       <p class="toolbar-hint">Click a row to post a stock transaction. Clock icon shows history, pencil edits the item.</p>
       <div>
@@ -799,7 +800,8 @@
         <button class="btn-ghost" id="fgExportBtn"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px;margin-right:6px"><path d="M8 2v8m0 0L5 7m3 3l3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12v1.5A1.5 1.5 0 0 0 4.5 15h7a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Export</button>
         <button class="btn-ghost" id="fgRefreshBtn">Refresh</button>
         <span class="freshness-label" id="fgFreshness"></span>
-        <button class="btn-primary btn-compact hidden add-btn-spacer" id="fgAddItemBtn">+ Add FG item</button>
+        <button class="btn-ghost hidden add-btn-spacer" id="fgImportBtn"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px;margin-right:6px"><path d="M8 10V2m0 0L5 5m3-3 3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12v1.5A1.5 1.5 0 0 0 4.5 15h7a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Import</button>
+        <button class="btn-primary btn-compact hidden" id="fgAddItemBtn">+ Add FG item</button>
       </div>
       <p class="toolbar-hint">Click a row to post a stock transaction. Clock icon shows history, pencil edits the item.</p>
       <div>
@@ -941,6 +943,39 @@
         <thead><tr><th>Date</th><th>Type</th><th style="text-align:center">Qty</th><th>Dept</th><th>Ref / Supp</th><th>User</th></tr></thead>
         <tbody id="ledgerTableBody"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importFileInput" accept=".xlsx,.xls" class="hidden">
+
+<div id="importModal" class="modal-backdrop hidden">
+  <div class="modal modal-wide">
+    <div class="modal-head">
+      <div><div class="modal-eyebrow" id="importModalEyebrow"></div><h3 id="importModalTitle"></h3></div>
+      <button class="icon-btn" id="importCloseBtn" aria-label="Close">✕</button>
+    </div>
+
+    <div id="importStep1">
+      <p class="hint" style="margin-bottom:18px">Upload an Excel file to add several items at once. Not sure of the format? Start from the template — it already has the right columns, with one example row.</p>
+      <div class="modal-actions" style="justify-content:flex-start;border-top:none;padding-top:0;margin-top:0">
+        <button type="button" class="btn-ghost" id="importDownloadTemplateBtn">Download template</button>
+        <button type="button" class="btn-primary btn-compact" id="importChooseFileBtn">Choose file…</button>
+      </div>
+    </div>
+
+    <div id="importStep2" class="hidden">
+      <div id="importSummary" style="margin-bottom:14px"></div>
+      <div class="ledger-table-wrap" style="max-height:360px">
+        <table>
+          <thead><tr><th>Row</th><th>Code</th><th>Name</th><th>Category</th><th>Unit</th><th>Reorder</th><th>Opening</th><th>Status</th></tr></thead>
+          <tbody id="importPreviewBody"></tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="importBackBtn">Choose a different file</button>
+        <button type="button" class="btn-primary btn-compact" id="importConfirmBtn">Import</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1377,6 +1412,8 @@ async function boot() {
   state.canEditMaster = state.session.role === 'Admin' || state.session.role === 'Manager';
   document.getElementById('rmAddItemBtn').classList.toggle('hidden', !state.canEditMaster);
   document.getElementById('fgAddItemBtn').classList.toggle('hidden', !state.canEditMaster);
+  document.getElementById('rmImportBtn').classList.toggle('hidden', !state.canEditMaster);
+  document.getElementById('fgImportBtn').classList.toggle('hidden', !state.canEditMaster);
 
   renderTableSkeleton('rmTableBody', 6, 6);
   renderTableSkeleton('fgTableBody', 6, 6);
@@ -2009,6 +2046,143 @@ async function handleItemDelete() {
 }
 
 /* =========================================================================
+   BULK IMPORT (RM & FG) — upload an .xlsx, preview + validate client-side,
+   then send only the valid rows in one batched call. Uses config.itemFields
+   directly (the same field list the single-item Add form renders from), so
+   the template and validation automatically stay in sync with whatever
+   fields that form asks for.
+   ========================================================================= */
+let activeImportConfig = null;
+let importPreviewRows = []; // rows that passed validation — what actually gets sent on confirm
+
+function openImportModal(key) {
+  const config = key === 'rm' ? RM_CONFIG_UI : FG_CONFIG_UI;
+  activeImportConfig = config; importPreviewRows = [];
+  document.getElementById('importModalEyebrow').textContent = 'BULK IMPORT';
+  document.getElementById('importModalTitle').textContent = 'Import ' + (key === 'rm' ? 'RM' : 'FG') + ' items';
+  document.getElementById('importStep1').classList.remove('hidden');
+  document.getElementById('importStep2').classList.add('hidden');
+  document.getElementById('importFileInput').value = '';
+  document.getElementById('importModal').classList.remove('hidden');
+}
+function closeImportModal() { document.getElementById('importModal').classList.add('hidden'); activeImportConfig = null; importPreviewRows = []; }
+
+function importTemplateHeaders(config) {
+  return [config.codeField].concat(config.itemFields.map(function (f) { return f.key; })).concat(['OpeningStock']);
+}
+
+async function downloadImportTemplate() {
+  const config = activeImportConfig; if (!config) return;
+  const btn = document.getElementById('importDownloadTemplateBtn'); setBtnLoading(btn, 'Preparing…');
+  try {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    const headers = importTemplateHeaders(config);
+    const exampleRow = headers.map(function (h) { return h === config.codeField ? (config.key === 'rm' ? 'RM-EXAMPLE01' : 'FG-EXAMPLE01') : (h === 'OpeningStock' ? 0 : ''); });
+    const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
+    ws['!cols'] = headers.map(function () { return { wch: 18 }; });
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Import');
+    XLSX.writeFile(wb, (config.key === 'rm' ? 'RM' : 'FG') + '_Import_Template.xlsx');
+  } catch (err) { toast('Could not build the template — check your connection.', true); } finally { clearBtnLoading(btn, 'Download template'); }
+}
+
+async function handleImportFileChosen(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const config = activeImportConfig; if (!config) return;
+  try {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+    if (raw.length === 0) { toast('That file has no rows to import.', true); return; }
+    if (raw.length > 500) { toast('That\u2019s ' + raw.length + ' rows — imports are capped at 500 at a time. Split it into smaller files.', true); return; }
+    processImportRows(config, raw);
+  } catch (err) { toast('Could not read that file — make sure it\u2019s a .xlsx in the template format.', true); }
+}
+
+function processImportRows(config, rawRows) {
+  const existingCodes = new Set(state[config.masterKey].map(function (m) { return m[config.codeField]; }));
+  const seenInFile = new Set();
+  const preview = [];
+  let validCount = 0;
+
+  rawRows.forEach(function (raw, idx) {
+    const code = String(raw[config.codeField] || '').trim();
+    const name = String(raw[config.nameField] || '').trim();
+    let error = '';
+    if (!code) error = 'Missing ' + config.codeField;
+    else if (!name) error = 'Missing name';
+    else if (existingCodes.has(code)) error = 'Code already exists';
+    else if (seenInFile.has(code)) error = 'Duplicate in this file';
+    else {
+      const missingField = config.itemFields.find(function (f) { return f.required && f.key !== config.nameField && !String(raw[f.key] || '').trim(); });
+      if (missingField) error = missingField.label + ' is required';
+    }
+
+    const row = {}; row[config.codeField] = code;
+    config.itemFields.forEach(function (f) { row[f.key] = raw[f.key] !== undefined ? raw[f.key] : ''; });
+    row.OpeningStock = Number(raw.OpeningStock) || 0;
+
+    if (!error) { seenInFile.add(code); validCount++; }
+    preview.push({ rowLabel: 'Row ' + (idx + 2), row: row, error: error });
+  });
+
+  renderImportPreview(config, preview, validCount);
+}
+
+function renderImportPreview(config, preview, validCount) {
+  importPreviewRows = preview.filter(function (p) { return !p.error; }).map(function (p) { return p.row; });
+  const errorCount = preview.length - validCount;
+
+  document.getElementById('importSummary').innerHTML =
+    '<div style="display:flex;gap:16px;align-items:center;padding:14px 16px;background:var(--paper);border:1px solid var(--line-soft);border-radius:10px;font-size:13.5px">' +
+    '<span style="font-weight:700;color:var(--ok)">' + validCount + ' ready to import</span>' +
+    (errorCount ? '<span style="font-weight:700;color:var(--critical)">' + errorCount + ' skipped (see below)</span>' : '') +
+    '</div>';
+
+  document.getElementById('importPreviewBody').innerHTML = preview.map(function (p) {
+    const r = p.row;
+    return '<tr' + (p.error ? ' style="opacity:0.55"' : '') + '>' +
+      '<td class="mono muted">' + escapeHtml(p.rowLabel) + '</td>' +
+      '<td class="mono">' + escapeHtml(r[config.codeField]) + '</td>' +
+      '<td>' + escapeHtml(r[config.nameField] || '') + '</td>' +
+      '<td>' + escapeHtml(r[config.categoryField] || '') + '</td>' +
+      '<td>' + escapeHtml(r[config.unitField] || '') + '</td>' +
+      '<td style="text-align:right">' + escapeHtml(String(r[config.reorderField] || '')) + '</td>' +
+      '<td style="text-align:right">' + escapeHtml(String(r.OpeningStock || 0)) + '</td>' +
+      '<td>' + (p.error ? '<span style="color:var(--critical);font-weight:600">' + escapeHtml(p.error) + '</span>' : '<span style="color:var(--ok);font-weight:600">Ready</span>') + '</td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('importStep1').classList.add('hidden');
+  document.getElementById('importStep2').classList.remove('hidden');
+  const confirmBtn = document.getElementById('importConfirmBtn');
+  confirmBtn.disabled = validCount === 0;
+  confirmBtn.textContent = validCount > 0 ? 'Import ' + validCount + ' item' + (validCount === 1 ? '' : 's') : 'Nothing to import';
+}
+
+function backToImportStep1() {
+  document.getElementById('importFileInput').value = '';
+  document.getElementById('importStep2').classList.add('hidden');
+  document.getElementById('importStep1').classList.remove('hidden');
+}
+
+async function confirmBulkImport() {
+  const config = activeImportConfig; if (!config || importPreviewRows.length === 0) return;
+  const btn = document.getElementById('importConfirmBtn'); const label = 'Import ' + importPreviewRows.length + ' item' + (importPreviewRows.length === 1 ? '' : 's');
+  setBtnLoading(btn, 'Importing…');
+  try {
+    const action = config.key === 'rm' ? 'bulkAddRMItems' : 'bulkAddFGItems';
+    const result = await api(action, { rows: importPreviewRows });
+    await refreshAllData(); populateCategoryFilters();
+    if (config.key === 'rm') renderRMPage(); else renderFGPage(); renderHome();
+    closeImportModal();
+    let msg = 'Imported ' + result.added + ' item' + (result.added === 1 ? '' : 's') + '.';
+    if (result.skipped && result.skipped.length) msg += ' ' + result.skipped.length + ' skipped — codes must have changed since the preview.';
+    toast(msg);
+  } catch (err) { toast(err.message, true); clearBtnLoading(btn, label); }
+}
+
+/* =========================================================================
    TEAM & ACCESS (Users)
    ========================================================================= */
 function renderUsersPage() {
@@ -2082,6 +2256,8 @@ async function handleRecalc() {
     const rmResult = await api('recalculateRMStock'); const fgResult = await api('recalculateFGStock'); await refreshAllData(); renderHome();
     if (!document.getElementById('page-rm').classList.contains('hidden')) renderRMPage(); if (!document.getElementById('page-fg').classList.contains('hidden')) renderFGPage();
     toast('Stock recalculated. ' + ((rmResult.itemsWithNoActivity || 0) + (fgResult.itemsWithNoActivity || 0)) + ' item(s) have no activity yet.');
+    if (rmResult.warning) toast(rmResult.warning, true);
+    if (fgResult.warning) toast(fgResult.warning, true);
   } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn); }
 }
 function exportToExcel(config) {
@@ -2143,6 +2319,12 @@ function wireStaticEvents() {
     loadLedgerRows();
   });
   document.getElementById('ledgerExportBtn').addEventListener('click', exportLedgerToExcel);
+  ['importCloseBtn', 'importModal'].forEach(id => document.getElementById(id).addEventListener('click', function (e) { if (e.target.id === id) closeImportModal(); }));
+  document.getElementById('importDownloadTemplateBtn').addEventListener('click', downloadImportTemplate);
+  document.getElementById('importChooseFileBtn').addEventListener('click', function () { document.getElementById('importFileInput').click(); });
+  document.getElementById('importFileInput').addEventListener('change', handleImportFileChosen);
+  document.getElementById('importBackBtn').addEventListener('click', backToImportStep1);
+  document.getElementById('importConfirmBtn').addEventListener('click', confirmBulkImport);
 
   document.getElementById('addUserBtn').addEventListener('click', function () { openUserModal(null); });
   document.getElementById('userSearch').addEventListener('input', debounce(function (e) { state.userSearch = e.target.value; renderUsersPage(); }, 150));
@@ -2161,7 +2343,7 @@ function wireStaticEvents() {
 
 function wireStockPageEvents(kind) {
   const isRM = kind === 'rm'; const render = isRM ? renderRMPage : renderFGPage;
-  const els = { search: isRM ? 'rmSearch' : 'fgSearch', cat: isRM ? 'rmCategoryFilter' : 'fgCategoryFilter', status: isRM ? 'rmStatusFilter' : 'fgStatusFilter', inactive: isRM ? 'rmShowInactive' : 'fgShowInactive', prev: isRM ? 'rmPrevBtn' : 'fgPrevBtn', next: isRM ? 'rmNextBtn' : 'fgNextBtn', body: isRM ? 'rmTableBody' : 'fgTableBody', refresh: isRM ? 'rmRefreshBtn' : 'fgRefreshBtn', export: isRM ? 'rmExportBtn' : 'fgExportBtn', add: isRM ? 'rmAddItemBtn' : 'fgAddItemBtn' };
+  const els = { search: isRM ? 'rmSearch' : 'fgSearch', cat: isRM ? 'rmCategoryFilter' : 'fgCategoryFilter', status: isRM ? 'rmStatusFilter' : 'fgStatusFilter', inactive: isRM ? 'rmShowInactive' : 'fgShowInactive', prev: isRM ? 'rmPrevBtn' : 'fgPrevBtn', next: isRM ? 'rmNextBtn' : 'fgNextBtn', body: isRM ? 'rmTableBody' : 'fgTableBody', refresh: isRM ? 'rmRefreshBtn' : 'fgRefreshBtn', export: isRM ? 'rmExportBtn' : 'fgExportBtn', add: isRM ? 'rmAddItemBtn' : 'fgAddItemBtn', import: isRM ? 'rmImportBtn' : 'fgImportBtn' };
   
   document.getElementById(els.search).addEventListener('input', debounce(function (e) { if (isRM) { state.rmSearch = e.target.value; state.rmPage = 1; } else { state.fgSearch = e.target.value; state.fgPage = 1; } render(); }, 150));
   document.getElementById(els.cat).addEventListener('change', function (e) { if (isRM) { state.rmCategory = e.target.value; state.rmPage = 1; } else { state.fgCategory = e.target.value; state.fgPage = 1; } render(); });
@@ -2191,6 +2373,7 @@ function wireStockPageEvents(kind) {
   document.getElementById(els.refresh).addEventListener('click', async function () { const btn = this; setBtnLoading(btn, 'Refreshing…', true); try { await refreshAllData(); render(); renderHome(); updateFreshnessLabel(kind); toast('Refreshed.'); } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn); } });
   document.getElementById(els.export).addEventListener('click', function () { exportToExcel(isRM ? RM_CONFIG_UI : FG_CONFIG_UI); });
   document.getElementById(els.add).addEventListener('click', function () { openItemModal(kind, null); });
+  document.getElementById(els.import).addEventListener('click', function () { openImportModal(kind); });
 }
 
 function makeTablesResizable() {
