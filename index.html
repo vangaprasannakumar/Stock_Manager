@@ -444,13 +444,14 @@
   .panel-chevron { flex-shrink: 0; transition: transform 0.25s var(--ease); }
   .panel-head-toggle[aria-expanded="false"] { border-bottom-color: transparent; }
   .panel-head-toggle[aria-expanded="false"] .panel-chevron { transform: rotate(-90deg); }
-  /* Height-auto-friendly collapse: animating a grid-template-rows fraction
-     avoids the usual "animating max-height needs a guessed pixel cap"
-     problem — this works for any content height, including a resized
-     window or an alerts list that grows/shrinks. */
-  .panel-collapsible { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.3s var(--ease); }
-  .panel-collapsible.collapsed { grid-template-rows: 0fr; }
-  .panel-collapsible > div { overflow: hidden; min-height: 0; }
+  /* Collapse via max-height rather than animating grid-template-rows —
+     the fr-unit grid trick doesn't reliably resolve to a true 0 across
+     browsers (grid items' implicit min-height fights it), which was
+     leaving a visible sliver of content when collapsed. max-height always
+     reaches exactly 0. The cap just needs to comfortably clear the
+     tallest this content could realistically get. */
+  .panel-collapsible { max-height: 2000px; overflow: hidden; transition: max-height 0.35s var(--ease); }
+  .panel-collapsible.collapsed { max-height: 0; }
   .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 48px 24px; color: var(--ink-faint); font-size: 14px; font-weight: 500; text-align: center; }
   .empty-state svg { color: var(--ok); opacity: 0.7; }
 
@@ -508,11 +509,12 @@
   .toast.show { opacity: 1; transform: translateY(0) scale(1); }
   .toast-error { background: var(--critical); }
 
-  /* Bottom-left, opposite the toasts (bottom-right), so an active toast
-     never overlaps it. z-index sits above ordinary page content but below
-     modal-backdrop (100) so an open modal correctly covers it. */
+  /* Bottom-right, offset above the toast stack (which sits at bottom:32px
+     in the same corner) so an active toast doesn't sit directly on top of
+     it. z-index is above ordinary page content but below modal-backdrop
+     (100) so an open modal correctly covers it. */
   .scroll-top-btn {
-    position: fixed; left: 32px; bottom: 32px; z-index: 90;
+    position: fixed; right: 32px; bottom: 96px; z-index: 90;
     width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
     background: var(--panel); color: var(--ink-soft); border: 1px solid var(--line); box-shadow: var(--shadow-lift);
     cursor: pointer; opacity: 0; transform: translateY(14px) scale(0.9); pointer-events: none;
@@ -574,6 +576,7 @@
     .alert-row .alert-name { grid-column: 1 / -1; }
     
     #toastContainer { bottom: 90px; right: 16px; left: 16px; align-items: center; }
+    .scroll-top-btn { right: 16px; bottom: 150px; }
     .toast { max-width: 100%; width: 100%; text-align: center; }
     .modal { padding: 24px 20px; }
   }
