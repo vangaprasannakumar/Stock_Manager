@@ -439,6 +439,18 @@
      hover) the rest of the dashboard uses. */
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; animation: slideUpFade 0.5s var(--spring) both; animation-delay: 0.22s; }
   .panel-head { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; padding: 20px 24px; border-bottom: 1px solid var(--line-soft); color: var(--ink); }
+  .panel-head-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; background: none; border: none; cursor: pointer; font: inherit; text-align: left; transition: color 0.2s; }
+  .panel-head-toggle:hover { color: var(--blue); }
+  .panel-chevron { flex-shrink: 0; transition: transform 0.25s var(--ease); }
+  .panel-head-toggle[aria-expanded="false"] { border-bottom-color: transparent; }
+  .panel-head-toggle[aria-expanded="false"] .panel-chevron { transform: rotate(-90deg); }
+  /* Height-auto-friendly collapse: animating a grid-template-rows fraction
+     avoids the usual "animating max-height needs a guessed pixel cap"
+     problem — this works for any content height, including a resized
+     window or an alerts list that grows/shrinks. */
+  .panel-collapsible { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.3s var(--ease); }
+  .panel-collapsible.collapsed { grid-template-rows: 0fr; }
+  .panel-collapsible > div { overflow: hidden; min-height: 0; }
   .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 48px 24px; color: var(--ink-faint); font-size: 14px; font-weight: 500; text-align: center; }
   .empty-state svg { color: var(--ok); opacity: 0.7; }
 
@@ -495,6 +507,19 @@
   .toast { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); color: #fff; font-size: 14px; font-weight: 500; padding: 14px 20px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); opacity: 0; transform: translateY(15px) scale(0.95); transition: all 0.3s var(--spring); max-width: 360px; pointer-events: auto; border: 1px solid rgba(255,255,255,0.1); }
   .toast.show { opacity: 1; transform: translateY(0) scale(1); }
   .toast-error { background: var(--critical); }
+
+  /* Bottom-left, opposite the toasts (bottom-right), so an active toast
+     never overlaps it. z-index sits above ordinary page content but below
+     modal-backdrop (100) so an open modal correctly covers it. */
+  .scroll-top-btn {
+    position: fixed; left: 32px; bottom: 32px; z-index: 90;
+    width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--panel); color: var(--ink-soft); border: 1px solid var(--line); box-shadow: var(--shadow-lift);
+    cursor: pointer; opacity: 0; transform: translateY(14px) scale(0.9); pointer-events: none;
+    transition: opacity 0.25s var(--ease), transform 0.25s var(--ease), background 0.2s, color 0.2s, border-color 0.2s;
+  }
+  .scroll-top-btn.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+  .scroll-top-btn:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
 
   /* Mobile Overrides */
   .hidden-desktop { display: none !important; }
@@ -717,8 +742,11 @@
       </div>
 
       <div class="panel">
-        <div class="panel-head">Needs attention</div>
-        <div id="alertsList"></div>
+        <button type="button" class="panel-head panel-head-toggle" id="alertsPanelToggle" aria-expanded="true" aria-controls="alertsPanelBody">
+          <span>Needs attention</span>
+          <svg class="panel-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="panel-collapsible" id="alertsPanelBody"><div id="alertsList"></div></div>
       </div>
     </section>
 
@@ -915,6 +943,10 @@
 </div>
 
 <div id="toastContainer"></div>
+
+<button type="button" id="scrollTopBtn" class="scroll-top-btn" aria-label="Scroll to top">
+  <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 12.5V3.5M8 3.5L3.5 8M8 3.5 12.5 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</button>
 
 <div id="confirmModal" class="modal-backdrop hidden">
   <div class="modal" style="max-width:400px">
@@ -1122,6 +1154,18 @@ function loadSession() {
 }
 function clearSession() { state.session = null; localStorage.removeItem('stock_session'); }
 
+function toggleAlertsPanel() {
+  const btn = document.getElementById('alertsPanelToggle'); const body = document.getElementById('alertsPanelBody');
+  const collapsed = body.classList.toggle('collapsed');
+  btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  localStorage.setItem('stock_alerts_collapsed', collapsed ? '1' : '0');
+}
+function initAlertsPanelState() {
+  if (localStorage.getItem('stock_alerts_collapsed') !== '1') return;
+  document.getElementById('alertsPanelBody').classList.add('collapsed');
+  document.getElementById('alertsPanelToggle').setAttribute('aria-expanded', 'false');
+}
+
 function initTheme() {
   const saved = localStorage.getItem('stock_theme');
   if (saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -1286,6 +1330,7 @@ async function init() {
   setLoaderProgress(10, 'Initializing…');
   initTheme();
   applyBranding();
+  initAlertsPanelState();
   document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
   wireStaticEvents();
   if (localStorage.getItem('stock_rail_collapsed') === '1') {
@@ -1501,12 +1546,39 @@ function navigateTo(page) {
   if (page === 'fg') { renderFGPage(); updateFreshnessLabel('fg'); refreshStockData('fg'); }
   if (page === 'users') renderUsersPage();
   updateNavIndicator();
+  updateScrollTopBtn();
 }
 function updateNavIndicator() {
   const active = document.querySelector('.nav-link.active:not(.hidden)');
   const indicator = document.getElementById('navIndicator');
   if (!active || !indicator) return;
   if (window.innerWidth > 780) { indicator.style.top = active.offsetTop + 'px'; indicator.style.height = active.offsetHeight + 'px'; indicator.style.opacity = '1'; } else { indicator.style.opacity = '0'; }
+}
+
+// Desktop scrolls within each .page independently; the mobile layout
+// instead scrolls #appShell itself (.page becomes overflow:visible there)
+// — checking all three possible sources means this works correctly on
+// both without branching on viewport width.
+function currentScrollDepth() {
+  const activePage = document.querySelector('.page:not(.hidden)');
+  const appShell = document.getElementById('appShell');
+  return Math.max(activePage ? activePage.scrollTop : 0, appShell ? appShell.scrollTop : 0, window.scrollY || document.documentElement.scrollTop || 0);
+}
+function updateScrollTopBtn() {
+  const btn = document.getElementById('scrollTopBtn');
+  if (btn) btn.classList.toggle('show', currentScrollDepth() > 400);
+}
+function scrollActiveViewToTop() {
+  const behavior = REDUCE_MOTION ? 'auto' : 'smooth';
+  const activePage = document.querySelector('.page:not(.hidden)'); if (activePage) activePage.scrollTo({ top: 0, behavior: behavior });
+  const appShell = document.getElementById('appShell'); if (appShell) appShell.scrollTo({ top: 0, behavior: behavior });
+  window.scrollTo({ top: 0, behavior: behavior });
+}
+function setupScrollToTop() {
+  document.querySelectorAll('.page').forEach(function (page) { page.addEventListener('scroll', updateScrollTopBtn, { passive: true }); });
+  const appShell = document.getElementById('appShell'); if (appShell) appShell.addEventListener('scroll', updateScrollTopBtn, { passive: true });
+  window.addEventListener('scroll', updateScrollTopBtn, { passive: true });
+  document.getElementById('scrollTopBtn').addEventListener('click', scrollActiveViewToTop);
 }
 function toggleRailCollapse() {
   const rail = document.querySelector('.rail');
@@ -2076,6 +2148,8 @@ function wireStaticEvents() {
   ['userCloseBtn', 'userCancelBtn', 'userModal'].forEach(id => document.getElementById(id).addEventListener('click', function(e) { if (e.target.id === id || id !== 'userModal') closeUserModal(); }));
 
   document.getElementById('adminRecalcBtn').addEventListener('click', handleRecalc);
+  document.getElementById('alertsPanelToggle').addEventListener('click', toggleAlertsPanel);
+  setupScrollToTop();
   document.getElementById('confirmOkBtn').addEventListener('click', function () { _settleConfirm(true); });
   ['confirmCancelBtn', 'confirmModal'].forEach(id => document.getElementById(id).addEventListener('click', function (e) { if (e.target.id === id) _settleConfirm(false); }));
   window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !document.getElementById('confirmModal').classList.contains('hidden')) _settleConfirm(false); });
