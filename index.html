@@ -1028,6 +1028,20 @@ function loadScript(src) {
   return _scriptCache[src];
 }
 
+// Turns the base64 payload from the exportStyledWorkbook action into an
+// actual file download. The .xlsx itself is built entirely server-side
+// (see writeStyledSheet_ in Code.gs) — this is just the "hand the bytes
+// to the browser" step, no client-side spreadsheet library involved.
+function downloadBase64File(filename, base64) {
+  const byteChars = atob(base64);
+  const byteNumbers = new Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
 let chartJsReady = typeof Chart !== 'undefined';
 let chartJsPromise = null;
 function ensureChartJs() {
@@ -1957,23 +1971,41 @@ async function exportLedgerToExcel() {
   setBtnLoading(btn, 'Exporting…');
   try {
     const filters = currentLedgerFilters();
-    const rows = await api(config.ledgerAction, Object.assign({ code: code, limit: 20000 }, filters));
+    const rows = await api(config.ledgerAction, Object.assign({ code: code, limit: 5000 }, filters));
     if (rows.length === 0) { toast('Nothing to export for these filters.', true); return; }
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
-    const ws = XLSX.utils.json_to_sheet(rows.map(function (r) {
+    const exportRows = rows.map(function (r) {
       return {
-        'Date': r.Timestamp ? new Date(r.Timestamp).toISOString().slice(0, 10) : '',
-        'Type': r.TxnType || '', 'Qty': r.Qty, 'Department': r.Department || '',
-        'Reference': r.Reference || '', 'Supplier': r.Supplier || '', 'Invoice No': r.InvoiceNo || '',
-        'Invoice Date': r.InvoiceDate ? String(r.InvoiceDate).substring(0, 10) : '',
-        'Entered By': r.EnteredBy || ''
+        date: r.Timestamp ? new Date(r.Timestamp).toISOString().slice(0, 10) : '',
+        type: r.TxnType || '', qty: r.Qty, department: r.Department || '',
+        reference: r.Reference || '', supplier: r.Supplier || '', invoiceNo: r.InvoiceNo || '',
+        invoiceDate: r.InvoiceDate ? String(r.InvoiceDate).substring(0, 10) : '',
+        enteredBy: r.EnteredBy || ''
       };
-    }));
-    ws['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 20 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 16 }];
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'History');
+    });
+    const columns = [
+      { key: 'date', label: 'Date', width: 95 },
+      { key: 'type', label: 'Type', width: 90 },
+      { key: 'qty', label: 'Qty', width: 75, numFmt: '#,##0.##', align: 'right' },
+      { key: 'department', label: 'Department', width: 110 },
+      { key: 'reference', label: 'Reference', width: 150 },
+      { key: 'supplier', label: 'Supplier', width: 150 },
+      { key: 'invoiceNo', label: 'Invoice No', width: 100 },
+      { key: 'invoiceDate', label: 'Invoice Date', width: 100 },
+      { key: 'enteredBy', label: 'Entered By', width: 110 }
+    ];
     const rangeSuffix = (filters.dateFrom || filters.dateTo) ? ('_' + (filters.dateFrom || 'start') + '_to_' + (filters.dateTo || 'now')) : '';
-    XLSX.writeFile(wb, code + '_History' + rangeSuffix + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
-  } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn); }
+    const item = state[config.masterKey].find(function (m) { return m[config.codeField] === code; });
+    const result = await api('exportStyledWorkbook', {
+      filename: code + '_History' + rangeSuffix,
+      sheets: [{
+        name: 'History',
+        title: code + (item ? ' \u2014 ' + item[config.nameField] : ''),
+        subtitle: rows.length + ' transaction' + (rows.length === 1 ? '' : 's') + ((filters.dateFrom || filters.dateTo) ? ' \u00b7 filtered' : ''),
+        columns: columns, rows: exportRows
+      }]
+    });
+    downloadBase64File(result.filename, result.base64);
+  } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn, 'Export'); }
 }
 
 /* =========================================================================
@@ -2260,12 +2292,7 @@ async function handleRecalc() {
     if (fgResult.warning) toast(fgResult.warning, true);
   } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn); }
 }
-function exportToExcel(config) {
-  loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function () {
-    _exportToExcelWorkbook(config);
-  }).catch(function () { toast('Excel export library did not load.', true); });
-}
-function _exportToExcelWorkbook(config) {
+async function exportToExcel(config) {
   const isRM = config.key === 'rm'; const search = isRM ? state.rmSearch : state.fgSearch; const category = isRM ? state.rmCategory : state.fgCategory;
   const status = isRM ? state.rmStatus : state.fgStatus; const showInactive = isRM ? state.rmShowInactive : state.fgShowInactive;
   let rows = mergeStock(state[config.masterKey], state[config.stockKey], config, showInactive);
@@ -2273,11 +2300,34 @@ function _exportToExcelWorkbook(config) {
   if (category && category !== 'All') rows = rows.filter(function (r) { return r.category === category; });
   if (status && status !== 'All') rows = (status === 'NeedsAttention') ? rows.filter(function (r) { return r.status === 'Low' || r.status === 'Critical'; }) : rows.filter(function (r) { return r.status === status; });
   if (rows.length === 0) { toast('Nothing to export.', true); return; }
-  const catHeader = isRM ? 'Category' : 'Family';
-  const ws = XLSX.utils.json_to_sheet(rows.map(function (r) { return { 'ID No.': r.idNo || '', 'Code': r.code, 'Name': r.name || '', [catHeader]: r.category || '', 'Balance': r.balance, 'Unit': r.unit, 'Status': r.status, 'Minimum Quantity': r.reorder, 'Active': r.active ? 'Yes' : 'No' }; }));
-  ws['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 32 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 8 }];
-  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, isRM ? 'RM Stock' : 'FG Stock');
-  XLSX.writeFile(wb, (isRM ? 'RM_Stock_' : 'FG_Stock_') + new Date().toISOString().slice(0, 10) + '.xlsx');
+
+  const btn = document.getElementById(isRM ? 'rmExportBtn' : 'fgExportBtn'); setBtnLoading(btn, 'Exporting…');
+  try {
+    const catLabel = isRM ? 'Category' : 'Family';
+    const columns = [
+      { key: 'idNo', label: 'ID No.', width: 90 },
+      { key: 'code', label: 'Code', width: 110 },
+      { key: 'name', label: 'Name', width: 220 },
+      { key: 'category', label: catLabel, width: 120 },
+      { key: 'unit', label: 'Unit', width: 65, align: 'center' },
+      { key: 'balance', label: 'Balance', width: 90, numFmt: '#,##0.##', align: 'right' },
+      { key: 'reorder', label: 'Minimum Quantity', width: 110, numFmt: '#,##0.##', align: 'right' },
+      { key: 'status', label: 'Status', width: 90, align: 'center' },
+      { key: 'activeLabel', label: 'Active', width: 70, align: 'center' }
+    ];
+    const exportRows = rows.map(function (r) { return Object.assign({}, r, { activeLabel: r.active ? 'Yes' : 'No' }); });
+    const today = new Date().toISOString().slice(0, 10);
+    const result = await api('exportStyledWorkbook', {
+      filename: isRM ? 'RM_Stock' : 'FG_Stock',
+      sheets: [{
+        name: isRM ? 'RM Stock' : 'FG Stock',
+        title: COMPANY_NAME + ' \u2014 ' + (isRM ? 'RM' : 'FG') + ' Stock',
+        subtitle: today + ' \u00b7 ' + rows.length + ' item' + (rows.length === 1 ? '' : 's'),
+        columns: columns, rows: exportRows, statusColumnKey: 'status'
+      }]
+    });
+    downloadBase64File(result.filename, result.base64);
+  } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn, 'Export'); }
 }
 
 /* =========================================================================
