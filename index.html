@@ -2166,7 +2166,7 @@ async function exportLedgerToExcel() {
     const columns = [
       { key: 'date', label: 'Date', width: 95 },
       { key: 'type', label: 'Type', width: 90 },
-      { key: 'qty', label: 'Qty', width: 75, numFmt: '#,##0.##', align: 'right' },
+      { key: 'qty', label: 'Qty', width: 75, numFmt: '#,##0', align: 'right' },
       { key: 'department', label: 'Department', width: 110 },
       { key: 'reference', label: 'Reference', width: 150 },
       { key: 'supplier', label: 'Supplier', width: 150 },
@@ -2491,8 +2491,8 @@ async function exportToExcel(config) {
       { key: 'name', label: 'Name', width: 220 },
       { key: 'category', label: catLabel, width: 120 },
       { key: 'unit', label: 'Unit', width: 65, align: 'center' },
-      { key: 'balance', label: 'Balance', width: 90, numFmt: '#,##0.##', align: 'right' },
-      { key: 'reorder', label: 'Minimum Quantity', width: 110, numFmt: '#,##0.##', align: 'right' },
+      { key: 'balance', label: 'Balance', width: 90, numFmt: '#,##0', align: 'right' },
+      { key: 'reorder', label: 'Minimum Quantity', width: 110, numFmt: '#,##0', align: 'right' },
       { key: 'status', label: 'Status', width: 90, align: 'center' },
       { key: 'activeLabel', label: 'Active', width: 70, align: 'center' }
     ];
