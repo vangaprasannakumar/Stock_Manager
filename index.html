@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="app-version" content="3.0.0">
 <link rel="manifest" href="./manifest.json">
-<title>CALGAS Capacitors — Stock Management</title>
+<title>Stock Management</title>
 <link rel="icon" href="https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-192x192.jpg">
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-512x512.jpg">
 <link rel="preload" href="https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-192x192.jpg" as="image">
@@ -186,9 +186,23 @@
     width: 100%; padding: 12px 16px; border: 1px solid transparent; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500;
     background: var(--line-soft); color: var(--ink); transition: all 0.2s var(--ease); box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
   }
+  /* Selects get a custom chevron so the item modal's dropdowns match the
+     toolbar filters exactly, instead of each browser drawing its own. */
+  .field select, .toolbar select {
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    padding-right: 40px; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6.5L8 10.5L12 6.5' stroke='%23949ca6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center; background-size: 16px;
+  }
+  .field select:focus, .toolbar select:focus { border-color: var(--copper); }
+  /* The native option list is drawn by the OS, so it can't be styled — but
+     these two properties let it follow the app's own light/dark theme
+     instead of always rendering light. */
+  .field select, .toolbar select, .field select option, .toolbar select option { color-scheme: light dark; background-color: var(--panel); }
+  [data-theme="dark"] .field select, [data-theme="dark"] .toolbar select { background-color: var(--line-soft); }
   [data-theme="dark"] .field input, [data-theme="dark"] .field select { border: 1px solid var(--line); }
   .field input:hover, .field select:hover { filter: brightness(0.97); }
-  .field input:focus, .field select:focus { background: var(--panel); border-color: var(--copper); box-shadow: 0 0 0 4px var(--copper-soft), inset 0 2px 4px rgba(0,0,0,0.01); outline: none; }
+  .field input:focus, .field select:focus { background-color: var(--panel); border-color: var(--copper); box-shadow: 0 0 0 4px var(--copper-soft), inset 0 2px 4px rgba(0,0,0,0.01); outline: none; }
   .field .hint { font-size: 12px; color: var(--ink-faint); margin-top: 6px; }
   .field input.otp-input { font-family: var(--font-mono); font-size: 28px; letter-spacing: 12px; text-align: center; padding: 12px; font-weight: 600; }
 
@@ -359,7 +373,7 @@
   }
   .toolbar input[type="date"]:focus, .toolbar input[type="text"]:focus { border-color: var(--copper); box-shadow: 0 0 0 4px var(--copper-soft), var(--shadow); outline: none; }
   .toolbar-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
-  .toolbar select { padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 600; background: var(--panel); color: var(--ink); box-shadow: var(--shadow-sm); cursor: pointer; transition: all 0.2s; }
+  .toolbar select { padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 600; background-color: var(--panel); color: var(--ink); box-shadow: var(--shadow-sm); cursor: pointer; transition: all 0.2s; }
   .toolbar select:hover { border-color: var(--copper); }
   .toolbar .add-btn-spacer { margin-left: auto; }
   .toolbar-hint { font-size: 13px; font-weight: 500; color: var(--ink-soft); margin: 0 0 16px; }
@@ -905,7 +919,7 @@
       
       <div id="receiptFields" class="receipt-fields hidden">
         <div class="receipt-fields-label">Procurement details (Optional)</div>
-        <div class="field"><label for="txnSupplier">Supplier Name</label><input type="text" id="txnSupplier" list="txnSupplierList" autocomplete="off"><datalist id="txnSupplierList"></datalist></div>
+        <div class="field"><label for="txnSupplier">Supplier Name</label><select id="txnSupplier"></select></div>
         <div class="field"><label for="txnInvoiceNo">Invoice No</label><input type="text" id="txnInvoiceNo"></div>
         <div class="field"><label for="txnInvoiceDate">Invoice Date</label><input type="date" id="txnInvoiceDate"></div>
       </div>
@@ -1143,7 +1157,7 @@ const RM_CONFIG_UI = {
   itemFields: [
     { key: 'RM_Name', label: 'Name', type: 'text', required: true },
     { key: 'Category', label: 'Category', type: 'select', dropdownSource: 'RM_Category', options: [], required: true },
-    { key: 'Unit', label: 'Unit', type: 'select', dropdownSource: 'Unit', options: [], required: true, placeholder: 'KG / MTR / NOS' },
+    { key: 'Unit', label: 'Unit', type: 'select', dropdownSource: 'Unit', options: [], required: true },
     { key: 'HSN_Code', label: 'HSN code', type: 'text' },
     { key: 'GST_Percent', label: 'GST %', type: 'number' },
     { key: 'ReorderLevel', label: 'Minimum quantity', type: 'number' },
@@ -1161,8 +1175,8 @@ const FG_CONFIG_UI = {
   itemFields: [
     { key: 'FG_Name', label: 'Name', type: 'text', required: true },
     { key: 'FG_Family', label: 'Family', type: 'select', dropdownSource: 'FG_Family', options: [], required: true },
-    { key: 'Category', label: 'Category', type: 'select', dropdownSource: 'FG_Category', options: [], required: true, placeholder: 'e.g. KVAR, HD PFC, > 60 MFD' },
-    { key: 'Unit', label: 'Unit', type: 'select', dropdownSource: 'Unit', options: [], required: true, placeholder: 'NOS' },
+    { key: 'Category', label: 'Category', type: 'select', dropdownSource: 'FG_Category', options: [], required: true },
+    { key: 'Unit', label: 'Unit', type: 'select', dropdownSource: 'Unit', options: [], required: true },
     { key: 'HSN_Code', label: 'HSN code', type: 'text' },
     { key: 'IGST', label: 'IGST %', type: 'number' },
     { key: 'CGST', label: 'CGST %', type: 'number' },
@@ -1841,10 +1855,24 @@ function mergeStock(master, stockList, config, includeInactive) {
     .filter(function (m) { return includeInactive || isActiveValue(m.Active); })
     .map(function (m) {
       const code = m[config.codeField]; const s = byCode[code];
+      const balance = s ? Number(s.CurrentBalance) || 0 : 0;
+      const reorder = Number(m[config.reorderField]) || 0;
+      // Status is derived here rather than read from the stock sheet's
+      // stored StockStatus. That stored value is only recomputed when a
+      // transaction is posted, so after someone edits an item's minimum
+      // quantity it can disagree with the balance sitting next to it —
+      // an item well above its new threshold still reading "Low". Deriving
+      // it keeps the label and the health % consistent by construction.
+      // Mirrors computeStockStatus_ in Code.gs; keep the two in step.
+      let status;
+      if (!s) status = 'No Activity';
+      else if (balance <= 0) status = 'Critical';
+      else if (reorder > 0 && balance <= reorder) status = 'Low';
+      else status = 'OK';
       return {
         code: code, idNo: m[config.idField] || '', name: m[config.nameField], category: m[config.categoryField],
-        unit: m[config.unitField] || 'NOS', balance: s ? Number(s.CurrentBalance) || 0 : 0,
-        reorder: Number(m[config.reorderField]) || 0, status: s ? s.StockStatus : 'No Activity', active: isActiveValue(m.Active)
+        unit: m[config.unitField] || 'NOS', balance: balance,
+        reorder: reorder, status: status, active: isActiveValue(m.Active)
       };
     });
   _mergeCache[cacheKey] = result;
@@ -1881,15 +1909,18 @@ function setStatsLoading() {
 /* =========================================================================
    RM / FG PAGE RENDERING
    ========================================================================= */
-// Filter lists lead with the curated Dropdowns-tab order, then append any
-// value actually in use that isn't on that list — so a filter can never
-// hide rows whose category was set before the tab existed (or typed ad hoc
-// through the combobox).
+// Filter lists follow the Dropdowns tab's own order — nothing is sorted, so
+// what users see in the filter matches what's in the sheet. Any value
+// actually in use that isn't on that list is appended, so a filter can
+// never hide rows whose category predates the tab.
 function buildFilterOptions_(dropdownKey, master, categoryField, staticCategories) {
   const curated = (state.dropdowns && state.dropdowns[dropdownKey]) || [];
   const inUse = master.map(function (m) { return m[categoryField]; }).filter(Boolean);
-  const extras = Array.from(new Set([...(staticCategories || []), ...inUse]))
-    .filter(function (v) { return curated.indexOf(v) === -1; }).sort();
+  const extras = [];
+  [].concat(staticCategories || [], inUse).forEach(function (v) {
+    v = String(v);
+    if (curated.indexOf(v) === -1 && extras.indexOf(v) === -1) extras.push(v);
+  });
   return curated.concat(extras);
 }
 function populateCategoryFilters() {
@@ -2057,10 +2088,10 @@ function openTxnModal(key, code) {
 
   ['txnQty', 'txnRate', 'txnReference', 'txnRemarks', 'txnSupplier', 'txnInvoiceNo', 'txnInvoiceDate', 'txnError'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).textContent = ''; });
 
-  // Supplier stays a free-text combobox rather than a locked select — a
-  // one-off supplier shouldn't require editing the Dropdowns tab first.
+  // Supplier list comes from the Dropdowns tab, in the tab's own order.
   const suppliers = (state.dropdowns && state.dropdowns.Supplier) || [];
-  document.getElementById('txnSupplierList').innerHTML = suppliers.map(function (s) { return '<option value="' + escapeHtml(s) + '">'; }).join('');
+  document.getElementById('txnSupplier').innerHTML = '<option value="">— None —</option>' +
+    suppliers.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join('');
 
   updateTxnFormVisibility(); document.getElementById('txnModal').classList.remove('hidden'); document.getElementById('txnQty').focus();
 }
@@ -2204,32 +2235,49 @@ async function exportLedgerToExcel() {
    ========================================================================= */
 function renderField_(f, val) {
   const id = 'itemField_' + f.key;
-  
-  if (f.type === 'select') { 
-    // Upgraded to a Combobox (Input + DataList) so users can select OR type a new one
-    return '<div class="field"><label for="' + id + '">' + f.label + (f.required ? ' *' : '') + '</label>' +
-           '<input type="text" id="' + id + '" data-key="' + f.key + '" value="' + escapeHtml(val) + '" list="' + id + '_list"' + (f.required ? ' required' : '') + ' autocomplete="off">' +
-           '<datalist id="' + id + '_list">' + f.options.map(function (o) { return '<option value="' + escapeHtml(o) + '">'; }).join('') + '</datalist></div>'; 
+
+  if (f.type === 'select') {
+    // A real <select>, not an input+datalist combobox — matches the styled
+    // dropdowns in the page toolbars and gives the same native picker.
+    // The Dropdowns tab is the source of truth, so options are rendered in
+    // exactly the order they appear there (no sorting).
+    const opts = f.options || [];
+    const cur = val === null || val === undefined ? '' : String(val);
+    // An existing item may hold a value that predates the Dropdowns tab (or
+    // was removed from it). Surface it as its own option instead of letting
+    // the select silently fall back to the first entry and rewrite the
+    // item's data on the next save.
+    const missing = cur && opts.indexOf(cur) === -1;
+    let html = '<div class="field"><label for="' + id + '">' + f.label + (f.required ? ' *' : '') + '</label>' +
+      '<select id="' + id + '" data-key="' + f.key + '"' + (f.required ? ' required' : '') + '>' +
+      '<option value=""' + (cur ? '' : ' selected') + '>' + (f.required ? 'Select…' : '— None —') + '</option>';
+    if (missing) html += '<option value="' + escapeHtml(cur) + '" selected>' + escapeHtml(cur) + ' (not in list)</option>';
+    html += opts.map(function (o) {
+      return '<option value="' + escapeHtml(o) + '"' + (o === cur ? ' selected' : '') + '>' + escapeHtml(o) + '</option>';
+    }).join('');
+    return html + '</select></div>';
   }
-  
+
   return '<div class="field"><label for="' + id + '">' + f.label + (f.required ? ' *' : '') + '</label><input type="' + f.type + '" id="' + id + '" data-key="' + f.key + '" value="' + escapeHtml(val) + '"' + (f.placeholder ? ' placeholder="' + escapeHtml(f.placeholder) + '"' : '') + (f.required ? ' required' : '') + (f.type === 'number' ? ' step="any"' : '') + '></div>';
 }
 function openItemModal(key, code) {
   const config = key === 'rm' ? RM_CONFIG_UI : FG_CONFIG_UI; const master = state[config.masterKey];
   
-  // Every select field fills from its Dropdowns-tab column first (that tab
-  // is the source of truth and controls ordering), then merges in anything
-  // already present in the master sheet plus the legacy hardcoded defaults.
-  // The merge matters because these render as comboboxes, not locked
-  // selects: an existing item whose value predates the Dropdowns tab must
-  // still show its own value in the list rather than looking invalid.
+  // Every select field fills from its Dropdowns-tab column, in exactly the
+  // order that tab lists them — the person maintaining the sheet controls
+  // what users see, so nothing is re-sorted here. Values already in the
+  // master sheet that aren't on the list are appended after it (in the
+  // order encountered) so existing items still show their own value.
   config.itemFields.forEach(function (f) {
     if (f.type !== 'select') return;
     const fromSheet = master.map(function (m) { return m[f.key]; }).filter(Boolean);
     const curated = (state.dropdowns && state.dropdowns[f.dropdownSource]) || [];
     const legacy = f.key === config.categoryField ? (config.staticCategories || []) : [];
-    // Curated order first, then extras sorted so they're findable.
-    const extras = Array.from(new Set([...legacy, ...fromSheet])).filter(function (v) { return curated.indexOf(v) === -1; }).sort();
+    const extras = [];
+    [].concat(legacy, fromSheet).forEach(function (v) {
+      v = String(v);
+      if (curated.indexOf(v) === -1 && extras.indexOf(v) === -1) extras.push(v);
+    });
     f.options = curated.concat(extras);
   });
 
