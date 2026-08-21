@@ -1153,7 +1153,6 @@ const RM_CONFIG_UI = {
   addAction: 'addRMTransaction', ledgerAction: 'getRMLedger', masterKey: 'rmMaster', stockKey: 'rmStock',
   addItemAction: 'addRMItem', updateItemAction: 'updateRMItem',
   deleteItemAction: 'deleteRMItem', reactivateItemAction: 'reactivateRMItem',
-  staticCategories: ['AL CAN', 'BOPP FILM', 'MPP FILM', 'POLYSTER FILM', 'CORE-PBT', 'CORE-PP', 'RESIN', 'RESISTORS', 'SOLDER WIRE','WIRE','SCRAP','PACKING','ZINC WIRE','OTHER'],
   itemFields: [
     { key: 'RM_Name', label: 'Name', type: 'text', required: true },
     { key: 'Category', label: 'Category', type: 'select', dropdownSource: 'RM_Category', options: [], required: true },
@@ -1171,7 +1170,6 @@ const FG_CONFIG_UI = {
   addAction: 'addFGTransaction', ledgerAction: 'getFGLedger', masterKey: 'fgMaster', stockKey: 'fgStock',
   addItemAction: 'addFGItem', updateItemAction: 'updateFGItem',
   deleteItemAction: 'deleteFGItem', reactivateItemAction: 'reactivateFGItem',
-  staticCategories: ['CYL-STD', 'CYL-HD', 'CYL-AGRI', 'CYL-SHD', 'BOX-STD', 'ALSTD'],
   itemFields: [
     { key: 'FG_Name', label: 'Name', type: 'text', required: true },
     { key: 'FG_Family', label: 'Family', type: 'select', dropdownSource: 'FG_Family', options: [], required: true },
@@ -1878,6 +1876,21 @@ function mergeStock(master, stockList, config, includeInactive) {
   _mergeCache[cacheKey] = result;
   return result.slice();
 }
+// Ranks a row for the Health/Status sort. Sorting on the status label alone
+// only produced four buckets, so every "Low" item sat in arbitrary order —
+// a 10% item and a 100% item were indistinguishable. Ranking on the actual
+// balance/minimum ratio orders them properly, and because Critical items
+// are at or below 0% they still lead the ascending sort naturally.
+// The two tail values are sentinels, spaced far above any real ratio:
+//   1e12 — item has no minimum set, so it has no health score to compare
+//   1e13 — item has never been transacted, so there's no data at all
+// Both park at the end of a worst-first sort instead of masquerading as 0%.
+function healthSortKey_(r) {
+  if (r.status === 'No Activity') return 1e13;
+  if (r.balance <= 0) return -1;
+  if (!(r.reorder > 0)) return 1e12;
+  return r.balance / r.reorder;
+}
 function sortRows(rows, sortState) {
   return rows.sort(function(a, b) {
     let valA = a[sortState.col]; let valB = b[sortState.col];
@@ -1885,8 +1898,7 @@ function sortRows(rows, sortState) {
     if (sortState.col === 'balance') {
       valA = Number(valA) || 0; valB = Number(valB) || 0;
     } else if (sortState.col === 'status') {
-      const sev = { 'Critical': 1, 'Low': 2, 'OK': 3, 'No Activity': 4 };
-      valA = sev[valA] || 5; valB = sev[valB] || 5;
+      valA = healthSortKey_(a); valB = healthSortKey_(b);
     } else {
       valA = String(valA || '').toLowerCase(); valB = String(valB || '').toLowerCase();
     }
@@ -1909,25 +1921,27 @@ function setStatsLoading() {
 /* =========================================================================
    RM / FG PAGE RENDERING
    ========================================================================= */
-// Filter lists follow the Dropdowns tab's own order — nothing is sorted, so
-// what users see in the filter matches what's in the sheet. Any value
-// actually in use that isn't on that list is appended, so a filter can
-// never hide rows whose category predates the tab.
-function buildFilterOptions_(dropdownKey, master, categoryField, staticCategories) {
+// Filter lists come from the Dropdowns tab only — no hardcoded defaults —
+// in the tab's own order, unsorted, so what users see matches the sheet.
+// The one addition is any value actually present on items right now that
+// the tab doesn't list: without it those rows would be reachable only via
+// "All", so it's a safety net against a stray/legacy value going
+// unfilterable, not a second source of options. Keep the Dropdowns tab
+// complete and this appends nothing.
+function buildFilterOptions_(dropdownKey, master, categoryField) {
   const curated = (state.dropdowns && state.dropdowns[dropdownKey]) || [];
-  const inUse = master.map(function (m) { return m[categoryField]; }).filter(Boolean);
   const extras = [];
-  [].concat(staticCategories || [], inUse).forEach(function (v) {
+  master.map(function (m) { return m[categoryField]; }).filter(Boolean).forEach(function (v) {
     v = String(v);
     if (curated.indexOf(v) === -1 && extras.indexOf(v) === -1) extras.push(v);
   });
   return curated.concat(extras);
 }
 function populateCategoryFilters() {
-  const rmCats = buildFilterOptions_('RM_Category', state.rmMaster, RM_CONFIG_UI.categoryField, RM_CONFIG_UI.staticCategories);
+  const rmCats = buildFilterOptions_('RM_Category', state.rmMaster, RM_CONFIG_UI.categoryField);
   document.getElementById('rmCategoryFilter').innerHTML = '<option value="All">All categories</option>' + rmCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
 
-  const fgCats = buildFilterOptions_('FG_Family', state.fgMaster, FG_CONFIG_UI.categoryField, FG_CONFIG_UI.staticCategories);
+  const fgCats = buildFilterOptions_('FG_Family', state.fgMaster, FG_CONFIG_UI.categoryField);
   document.getElementById('fgCategoryFilter').innerHTML = '<option value="All">All families</option>' + fgCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
 }
 function renderRMPage() { renderStockTable(RM_CONFIG_UI); }
@@ -1973,7 +1987,10 @@ function renderStockTable(config) {
     const editBtn = state.canEditMaster ? '<button class="row-action" data-action="edit" title="Edit item">' + EDIT_ICON + '</button>' : '';
     
     let healthPctText = '';
-    if ((r.status === 'Low' || r.status === 'Critical') && r.reorder > 0) {
+    // Shown on every scored row, not just Low/Critical — the column sorts by
+    // this number, and hiding it on OK rows made a correct sort look broken.
+    // Rows with no minimum set (or no activity) have nothing to show.
+    if (r.status !== 'No Activity' && r.reorder > 0) {
       const pct = Math.round((r.balance / r.reorder) * 100);
       healthPctText = '<span class="health-pct">' + pct + '%</span>';
     }
@@ -2263,22 +2280,16 @@ function renderField_(f, val) {
 function openItemModal(key, code) {
   const config = key === 'rm' ? RM_CONFIG_UI : FG_CONFIG_UI; const master = state[config.masterKey];
   
-  // Every select field fills from its Dropdowns-tab column, in exactly the
-  // order that tab lists them — the person maintaining the sheet controls
-  // what users see, so nothing is re-sorted here. Values already in the
-  // master sheet that aren't on the list are appended after it (in the
-  // order encountered) so existing items still show their own value.
+  // Select options come from the Dropdowns tab and nothing else — in the
+  // tab's own order, unsorted. Values other items happen to use are NOT
+  // mixed in: picking a category means picking from the curated list, so a
+  // typo on one item can't spread by showing up as an option on the next.
+  // (The item being edited is the exception — renderField_ preserves its
+  // own current value as a "(not in list)" option so opening and saving an
+  // older item can't silently rewrite its data.)
   config.itemFields.forEach(function (f) {
     if (f.type !== 'select') return;
-    const fromSheet = master.map(function (m) { return m[f.key]; }).filter(Boolean);
-    const curated = (state.dropdowns && state.dropdowns[f.dropdownSource]) || [];
-    const legacy = f.key === config.categoryField ? (config.staticCategories || []) : [];
-    const extras = [];
-    [].concat(legacy, fromSheet).forEach(function (v) {
-      v = String(v);
-      if (curated.indexOf(v) === -1 && extras.indexOf(v) === -1) extras.push(v);
-    });
-    f.options = curated.concat(extras);
+    f.options = (state.dropdowns && state.dropdowns[f.dropdownSource]) || [];
   });
 
   const isEdit = !!code; const item = isEdit ? master.find(function (m) { return m[config.codeField] === code; }) : null; if (isEdit && !item) return;
