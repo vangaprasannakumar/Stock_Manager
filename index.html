@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="app-version" content="3.0.0">
 <link rel="manifest" href="./manifest.json">
-<title>Stock Management</title>
+<title>CALGAS Capacitors — Stock Management</title>
 <link rel="icon" href="https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-192x192.jpg">
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-512x512.jpg">
 <link rel="preload" href="https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-192x192.jpg" as="image">
@@ -905,7 +905,7 @@
       
       <div id="receiptFields" class="receipt-fields hidden">
         <div class="receipt-fields-label">Procurement details (Optional)</div>
-        <div class="field"><label for="txnSupplier">Supplier Name</label><input type="text" id="txnSupplier"></div>
+        <div class="field"><label for="txnSupplier">Supplier Name</label><input type="text" id="txnSupplier" list="txnSupplierList" autocomplete="off"><datalist id="txnSupplierList"></datalist></div>
         <div class="field"><label for="txnInvoiceNo">Invoice No</label><input type="text" id="txnInvoiceNo"></div>
         <div class="field"><label for="txnInvoiceDate">Invoice Date</label><input type="date" id="txnInvoiceDate"></div>
       </div>
@@ -1142,8 +1142,8 @@ const RM_CONFIG_UI = {
   staticCategories: ['AL CAN', 'BOPP FILM', 'MPP FILM', 'POLYSTER FILM', 'CORE-PBT', 'CORE-PP', 'RESIN', 'RESISTORS', 'SOLDER WIRE','WIRE','SCRAP','PACKING','ZINC WIRE','OTHER'],
   itemFields: [
     { key: 'RM_Name', label: 'Name', type: 'text', required: true },
-    { key: 'Category', label: 'Category', type: 'select', options: [], required: true },
-    { key: 'Unit', label: 'Unit', type: 'text', required: true, placeholder: 'KG / MTR / NOS' },
+    { key: 'Category', label: 'Category', type: 'select', dropdownSource: 'RM_Category', options: [], required: true },
+    { key: 'Unit', label: 'Unit', type: 'select', dropdownSource: 'Unit', options: [], required: true, placeholder: 'KG / MTR / NOS' },
     { key: 'HSN_Code', label: 'HSN code', type: 'text' },
     { key: 'GST_Percent', label: 'GST %', type: 'number' },
     { key: 'ReorderLevel', label: 'Minimum quantity', type: 'number' },
@@ -1160,9 +1160,9 @@ const FG_CONFIG_UI = {
   staticCategories: ['CYL-STD', 'CYL-HD', 'CYL-AGRI', 'CYL-SHD', 'BOX-STD', 'ALSTD'],
   itemFields: [
     { key: 'FG_Name', label: 'Name', type: 'text', required: true },
-    { key: 'FG_Family', label: 'Family', type: 'select', options: [], required: true },
-    { key: 'Category', label: 'Category', type: 'text', required: true, placeholder: 'e.g. KVAR, HD PFC, > 60 MFD' },
-    { key: 'Unit', label: 'Unit', type: 'text', required: true, placeholder: 'NOS' },
+    { key: 'FG_Family', label: 'Family', type: 'select', dropdownSource: 'FG_Family', options: [], required: true },
+    { key: 'Category', label: 'Category', type: 'select', dropdownSource: 'FG_Category', options: [], required: true, placeholder: 'e.g. KVAR, HD PFC, > 60 MFD' },
+    { key: 'Unit', label: 'Unit', type: 'select', dropdownSource: 'Unit', options: [], required: true, placeholder: 'NOS' },
     { key: 'HSN_Code', label: 'HSN code', type: 'text' },
     { key: 'IGST', label: 'IGST %', type: 'number' },
     { key: 'CGST', label: 'CGST %', type: 'number' },
@@ -1175,7 +1175,7 @@ const FG_CONFIG_UI = {
     { key: 'Label_MRP', label: 'Label MRP', type: 'number', section: 'more' },
     { key: 'Label_Qty', label: 'Label qty', type: 'number', section: 'more' },
     { key: 'Rating_OLMFD', label: 'Rating (OL MFD)', type: 'text', section: 'more' },
-    { key: 'OLCustomer', label: 'OL customer', type: 'text', section: 'more' }
+    { key: 'OLCustomer', label: 'OL customer', type: 'select', dropdownSource: 'OLCustomer', options: [], section: 'more' }
   ]
 };
 
@@ -1195,7 +1195,7 @@ const STATUS_ICONS = {
    ========================================================================= */
 const state = {
   session: null,
-  rmMaster: [], fgMaster: [], rmStock: [], fgStock: [], departments: [], users: [],
+  rmMaster: [], fgMaster: [], rmStock: [], fgStock: [], departments: [], users: [], dropdowns: {},
   rmSearch: '', fgSearch: '', rmCategory: 'All', fgCategory: 'All', rmStatus: 'All', fgStatus: 'All',
   rmPage: 1, fgPage: 1, rmShowInactive: false, fgShowInactive: false,
   rmSort: { col: 'idNo', dir: 'asc' }, fgSort: { col: 'idNo', dir: 'asc' },
@@ -1640,6 +1640,7 @@ async function refreshAllData() {
   // connections, and on every "Refresh" click.
   const data = await api('getBootstrap');
   state.rmMaster = data.rmMaster; state.fgMaster = data.fgMaster; state.rmStock = data.rmStock; state.fgStock = data.fgStock; state.departments = data.departments;
+  state.dropdowns = data.dropdowns || {};
   if (data.users) state.users = data.users;
   state.rmLastUpdated = new Date(); state.fgLastUpdated = new Date();
   invalidateMergeCache();
@@ -1880,19 +1881,22 @@ function setStatsLoading() {
 /* =========================================================================
    RM / FG PAGE RENDERING
    ========================================================================= */
+// Filter lists lead with the curated Dropdowns-tab order, then append any
+// value actually in use that isn't on that list — so a filter can never
+// hide rows whose category was set before the tab existed (or typed ad hoc
+// through the combobox).
+function buildFilterOptions_(dropdownKey, master, categoryField, staticCategories) {
+  const curated = (state.dropdowns && state.dropdowns[dropdownKey]) || [];
+  const inUse = master.map(function (m) { return m[categoryField]; }).filter(Boolean);
+  const extras = Array.from(new Set([...(staticCategories || []), ...inUse]))
+    .filter(function (v) { return curated.indexOf(v) === -1; }).sort();
+  return curated.concat(extras);
+}
 function populateCategoryFilters() {
-  // Merge RM defaults with any new ones found in the sheet
-  const rmCats = Array.from(new Set([
-    ...(RM_CONFIG_UI.staticCategories || []),
-    ...state.rmMaster.map(function (m) { return m[RM_CONFIG_UI.categoryField]; }).filter(Boolean)
-  ])).sort();
+  const rmCats = buildFilterOptions_('RM_Category', state.rmMaster, RM_CONFIG_UI.categoryField, RM_CONFIG_UI.staticCategories);
   document.getElementById('rmCategoryFilter').innerHTML = '<option value="All">All categories</option>' + rmCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
-  
-  // Merge FG defaults with any new ones found in the sheet
-  const fgCats = Array.from(new Set([
-    ...(FG_CONFIG_UI.staticCategories || []),
-    ...state.fgMaster.map(function (m) { return m[FG_CONFIG_UI.categoryField]; }).filter(Boolean)
-  ])).sort();
+
+  const fgCats = buildFilterOptions_('FG_Family', state.fgMaster, FG_CONFIG_UI.categoryField, FG_CONFIG_UI.staticCategories);
   document.getElementById('fgCategoryFilter').innerHTML = '<option value="All">All families</option>' + fgCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
 }
 function renderRMPage() { renderStockTable(RM_CONFIG_UI); }
@@ -2052,6 +2056,12 @@ function openTxnModal(key, code) {
   else { deptSelect.disabled = false; deptSelect.innerHTML = state.departments.map(function (d) { return '<option value="' + escapeHtml(d.DeptName) + '">' + escapeHtml(d.DeptName) + '</option>'; }).join(''); }
 
   ['txnQty', 'txnRate', 'txnReference', 'txnRemarks', 'txnSupplier', 'txnInvoiceNo', 'txnInvoiceDate', 'txnError'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).textContent = ''; });
+
+  // Supplier stays a free-text combobox rather than a locked select — a
+  // one-off supplier shouldn't require editing the Dropdowns tab first.
+  const suppliers = (state.dropdowns && state.dropdowns.Supplier) || [];
+  document.getElementById('txnSupplierList').innerHTML = suppliers.map(function (s) { return '<option value="' + escapeHtml(s) + '">'; }).join('');
+
   updateTxnFormVisibility(); document.getElementById('txnModal').classList.remove('hidden'); document.getElementById('txnQty').focus();
 }
 function updateTxnFormVisibility() {
@@ -2207,14 +2217,21 @@ function renderField_(f, val) {
 function openItemModal(key, code) {
   const config = key === 'rm' ? RM_CONFIG_UI : FG_CONFIG_UI; const master = state[config.masterKey];
   
-  // Smart Merge: Hardcoded defaults + anything currently in the Google Sheet
-  const catOptions = Array.from(new Set([
-    ...(config.staticCategories || []),
-    ...master.map(function (m) { return m[config.categoryField]; }).filter(Boolean)
-  ])).sort();
-  
-  const dropdownField = config.itemFields.find(function(f) { return f.type === 'select' && f.key === config.categoryField; });
-  if (dropdownField) dropdownField.options = catOptions;
+  // Every select field fills from its Dropdowns-tab column first (that tab
+  // is the source of truth and controls ordering), then merges in anything
+  // already present in the master sheet plus the legacy hardcoded defaults.
+  // The merge matters because these render as comboboxes, not locked
+  // selects: an existing item whose value predates the Dropdowns tab must
+  // still show its own value in the list rather than looking invalid.
+  config.itemFields.forEach(function (f) {
+    if (f.type !== 'select') return;
+    const fromSheet = master.map(function (m) { return m[f.key]; }).filter(Boolean);
+    const curated = (state.dropdowns && state.dropdowns[f.dropdownSource]) || [];
+    const legacy = f.key === config.categoryField ? (config.staticCategories || []) : [];
+    // Curated order first, then extras sorted so they're findable.
+    const extras = Array.from(new Set([...legacy, ...fromSheet])).filter(function (v) { return curated.indexOf(v) === -1; }).sort();
+    f.options = curated.concat(extras);
+  });
 
   const isEdit = !!code; const item = isEdit ? master.find(function (m) { return m[config.codeField] === code; }) : null; if (isEdit && !item) return;
   activeItemConfig = config; activeItemMode = isEdit ? 'edit' : 'add'; activeItemCode = code || null;
