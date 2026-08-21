@@ -859,6 +859,7 @@
       <div class="toolbar">
         <input type="search" id="fgSearch" placeholder="Search ID, code or name…">
         <select id="fgCategoryFilter"></select>
+        <select id="fgSubCategoryFilter"></select>
         <select id="fgStatusFilter">
           <option value="All">All statuses</option><option value="NeedsAttention">Needs attention</option>
           <option value="OK">OK</option><option value="Low">Low</option><option value="Critical">Critical</option><option value="No Activity">No activity</option>
@@ -878,6 +879,7 @@
             <th class="sortable" data-col="code">Code</th>
             <th class="sortable" data-col="name">Name</th>
             <th class="sortable" data-col="category">Family</th>
+            <th class="sortable" data-col="subCategory">Category</th>
             <th class="sortable" data-col="balance" style="text-align:right">Balance</th>
             <th class="sortable" data-col="status">Health / Status</th>
             <th class="actions-head" style="text-align:center">Actions</th>
@@ -1165,6 +1167,10 @@ const RM_CONFIG_UI = {
 };
 const FG_CONFIG_UI = {
   key: 'fg', codeField: 'FG_Code', idField: 'ID_No.', nameField: 'FG_Name', categoryField: 'FG_Family',
+  // FG items are grouped twice: by Family (CYL-STD, BOX-STD…) and by
+  // Category (MFD, KVAR…). RM has no equivalent second axis, so this is
+  // optional — the shared table/filter code skips it when absent.
+  subCategoryField: 'Category', subCategoryLabel: 'Category', subCategoryDropdown: 'FG_Category',
   unitField: 'Unit', reorderField: 'ReorderLevel',
   txnTypes: ['Production', 'Dispatch', 'Adjustment', 'Return'],
   addAction: 'addFGTransaction', ledgerAction: 'getFGLedger', masterKey: 'fgMaster', stockKey: 'fgStock',
@@ -1208,7 +1214,7 @@ const STATUS_ICONS = {
 const state = {
   session: null,
   rmMaster: [], fgMaster: [], rmStock: [], fgStock: [], departments: [], users: [], dropdowns: {},
-  rmSearch: '', fgSearch: '', rmCategory: 'All', fgCategory: 'All', rmStatus: 'All', fgStatus: 'All',
+  rmSearch: '', fgSearch: '', rmCategory: 'All', fgCategory: 'All', fgSubCategory: 'All', rmStatus: 'All', fgStatus: 'All',
   rmPage: 1, fgPage: 1, rmShowInactive: false, fgShowInactive: false,
   rmSort: { col: 'idNo', dir: 'asc' }, fgSort: { col: 'idNo', dir: 'asc' },
   rmLastUpdated: null, fgLastUpdated: null,
@@ -1622,8 +1628,8 @@ async function boot() {
   document.getElementById('rmImportBtn').classList.toggle('hidden', !state.canEditMaster);
   document.getElementById('fgImportBtn').classList.toggle('hidden', !state.canEditMaster);
 
-  renderTableSkeleton('rmTableBody', 6, 6);
-  renderTableSkeleton('fgTableBody', 6, 6);
+  renderTableSkeleton('rmTableBody', 7, 6);
+  renderTableSkeleton('fgTableBody', 8, 6);
   setStatsLoading();
 
   setLoaderProgress(78, 'Fetching stock data…');
@@ -1837,7 +1843,7 @@ function toggleRailCollapse() {
 function goToStockTab(kind, filterStatus) {
   const status = filterStatus || 'All';
   if (kind === 'rm') { state.rmSearch = ''; state.rmCategory = 'All'; state.rmStatus = status; state.rmPage = 1; document.getElementById('rmSearch').value = ''; document.getElementById('rmCategoryFilter').value = 'All'; document.getElementById('rmStatusFilter').value = status; } 
-  else { state.fgSearch = ''; state.fgCategory = 'All'; state.fgStatus = status; state.fgPage = 1; document.getElementById('fgSearch').value = ''; document.getElementById('fgCategoryFilter').value = 'All'; document.getElementById('fgStatusFilter').value = status; }
+  else { state.fgSearch = ''; state.fgCategory = 'All'; state.fgSubCategory = 'All'; state.fgStatus = status; state.fgPage = 1; document.getElementById('fgSearch').value = ''; document.getElementById('fgCategoryFilter').value = 'All'; document.getElementById('fgSubCategoryFilter').value = 'All'; document.getElementById('fgStatusFilter').value = status; }
   navigateTo(kind);
 }
 
@@ -1869,6 +1875,7 @@ function mergeStock(master, stockList, config, includeInactive) {
       else status = 'OK';
       return {
         code: code, idNo: m[config.idField] || '', name: m[config.nameField], category: m[config.categoryField],
+        subCategory: config.subCategoryField ? (m[config.subCategoryField] || '') : '',
         unit: m[config.unitField] || 'NOS', balance: balance,
         reorder: reorder, status: status, active: isActiveValue(m.Active)
       };
@@ -1943,6 +1950,9 @@ function populateCategoryFilters() {
 
   const fgCats = buildFilterOptions_('FG_Family', state.fgMaster, FG_CONFIG_UI.categoryField);
   document.getElementById('fgCategoryFilter').innerHTML = '<option value="All">All families</option>' + fgCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
+
+  const fgSubCats = buildFilterOptions_(FG_CONFIG_UI.subCategoryDropdown, state.fgMaster, FG_CONFIG_UI.subCategoryField);
+  document.getElementById('fgSubCategoryFilter').innerHTML = '<option value="All">All categories</option>' + fgSubCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
 }
 function renderRMPage() { renderStockTable(RM_CONFIG_UI); }
 function renderFGPage() { renderStockTable(FG_CONFIG_UI); }
@@ -1968,6 +1978,8 @@ function renderStockTable(config) {
   let rows = mergeStock(state[config.masterKey], state[config.stockKey], config, showInactive);
   if (search) { const q = search.toLowerCase(); rows = rows.filter(function (r) { return r.code.toLowerCase().indexOf(q) > -1 || (r.idNo || '').toLowerCase().indexOf(q) > -1 || (r.name || '').toLowerCase().indexOf(q) > -1; }); }
   if (category && category !== 'All') rows = rows.filter(function (r) { return r.category === category; });
+  const subCategory = config.subCategoryField ? state.fgSubCategory : 'All';
+  if (subCategory && subCategory !== 'All') rows = rows.filter(function (r) { return r.subCategory === subCategory; });
   if (status && status !== 'All') {
     if (status === 'NeedsAttention') rows = rows.filter(function (r) { return r.status === 'Low' || r.status === 'Critical'; });
     else rows = rows.filter(function (r) { return r.status === status; });
@@ -2000,6 +2012,7 @@ function renderStockTable(config) {
       '<td class="mono">' + escapeHtml(r.code) + '</td>' +
       '<td>' + escapeHtml(r.name || '') + (r.active ? '' : ' <span class="muted">(inactive)</span>') + '</td>' +
       '<td><span class="tag' + tagExtra + '">' + escapeHtml(r.category || '—') + '</span></td>' +
+      (config.subCategoryField ? '<td><span class="tag">' + escapeHtml(r.subCategory || '—') + '</span></td>' : '') +
       '<td class="mono num">' + formatNum(r.balance) + ' ' + escapeHtml(r.unit) + '</td>' +
       '<td><span class="status status-' + statusClass(r.status) + '">' + statusIcon(statusClass(r.status)) + escapeHtml(r.status) + '</span>' + healthPctText + '</td>' +
       '<td class="actions-cell"><button class="row-action" data-action="history" title="Transaction history">' + HISTORY_ICON + '</button>' + editBtn + '</td>' +
@@ -2007,7 +2020,10 @@ function renderStockTable(config) {
   }).join('');
 
   const bodyEl = document.getElementById(isRM ? 'rmTableBody' : 'fgTableBody');
-  bodyEl.innerHTML = bodyHtml || ('<tr><td colspan="7" class="empty">' + emptyStateMessage(config, isRM, search, category, status, showInactive) + '</td></tr>');
+  // Colspan tracks the actual column count so the empty-state row still
+  // spans the full table once FG gained its extra Category column.
+  const colCount = config.subCategoryField ? 8 : 7;
+  bodyEl.innerHTML = bodyHtml || ('<tr><td colspan="' + colCount + '" class="empty">' + emptyStateMessage(config, isRM, search, category, status, showInactive) + '</td></tr>');
 
   document.getElementById(isRM ? 'rmPageInfo' : 'fgPageInfo').textContent = total === 0 ? '0 items' : ('Showing ' + (start + 1) + '–' + Math.min(start + PAGE_SIZE, total) + ' of ' + total);
   document.getElementById(isRM ? 'rmPrevBtn' : 'fgPrevBtn').disabled = page <= 1; document.getElementById(isRM ? 'rmNextBtn' : 'fgNextBtn').disabled = page >= totalPages;
@@ -2555,6 +2571,8 @@ async function exportToExcel(config) {
   let rows = mergeStock(state[config.masterKey], state[config.stockKey], config, showInactive);
   if (search) { const q = search.toLowerCase(); rows = rows.filter(function (r) { return r.code.toLowerCase().indexOf(q) > -1 || (r.idNo || '').toLowerCase().indexOf(q) > -1 || (r.name || '').toLowerCase().indexOf(q) > -1; }); }
   if (category && category !== 'All') rows = rows.filter(function (r) { return r.category === category; });
+  const subCategory = config.subCategoryField ? state.fgSubCategory : 'All';
+  if (subCategory && subCategory !== 'All') rows = rows.filter(function (r) { return r.subCategory === subCategory; });
   if (status && status !== 'All') rows = (status === 'NeedsAttention') ? rows.filter(function (r) { return r.status === 'Low' || r.status === 'Critical'; }) : rows.filter(function (r) { return r.status === status; });
   if (rows.length === 0) { toast('Nothing to export.', true); return; }
 
@@ -2566,6 +2584,7 @@ async function exportToExcel(config) {
       { key: 'code', label: 'Code', width: 110 },
       { key: 'name', label: 'Name', width: 220 },
       { key: 'category', label: catLabel, width: 120 },
+      ...(config.subCategoryField ? [{ key: 'subCategory', label: config.subCategoryLabel, width: 110 }] : []),
       { key: 'unit', label: 'Unit', width: 65, align: 'center' },
       { key: 'balance', label: 'Balance', width: 90, numFmt: '#,##0', align: 'right' },
       { key: 'reorder', label: 'Minimum Quantity', width: 110, numFmt: '#,##0', align: 'right' },
@@ -2666,6 +2685,8 @@ function wireStockPageEvents(kind) {
   
   document.getElementById(els.search).addEventListener('input', debounce(function (e) { if (isRM) { state.rmSearch = e.target.value; state.rmPage = 1; } else { state.fgSearch = e.target.value; state.fgPage = 1; } render(); }, 150));
   document.getElementById(els.cat).addEventListener('change', function (e) { if (isRM) { state.rmCategory = e.target.value; state.rmPage = 1; } else { state.fgCategory = e.target.value; state.fgPage = 1; } render(); });
+  // FG only — RM has no second grouping axis, so this element doesn't exist there.
+  if (!isRM) document.getElementById('fgSubCategoryFilter').addEventListener('change', function (e) { state.fgSubCategory = e.target.value; state.fgPage = 1; render(); });
   document.getElementById(els.status).addEventListener('change', function (e) { if (isRM) { state.rmStatus = e.target.value; state.rmPage = 1; } else { state.fgStatus = e.target.value; state.fgPage = 1; } render(); });
   document.getElementById(els.inactive).addEventListener('change', function (e) { if (isRM) { state.rmShowInactive = e.target.checked; state.rmPage = 1; } else { state.fgShowInactive = e.target.checked; state.fgPage = 1; } render(); });
   document.getElementById(els.prev).addEventListener('click', function () { if (isRM) state.rmPage--; else state.fgPage--; render(); });
