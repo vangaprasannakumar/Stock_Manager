@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f3f0ea" id="metaThemeColor">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="app-version" content="3.0.0">
+<meta name="app-version" content="3.1.0">
 <link rel="manifest" href="./manifest.json">
 <title>Stock Management</title>
 <link rel="icon" href="https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-192x192.jpg">
@@ -204,6 +204,23 @@
   .field input:hover, .field select:hover { filter: brightness(0.97); }
   .field input:focus, .field select:focus { background-color: var(--panel); border-color: var(--copper); box-shadow: 0 0 0 4px var(--copper-soft), inset 0 2px 4px rgba(0,0,0,0.01); outline: none; }
   .field .hint { font-size: 12px; color: var(--ink-faint); margin-top: 6px; }
+  /* Searchable combobox — looks like the styled selects, but the popup is
+     ours so it can filter as you type. */
+  .combo { position: relative; }
+  .combo-input { width: 100%; padding: 12px 40px 12px 16px !important; }
+  .combo-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; padding: 6px; color: var(--ink-faint); display: flex; cursor: pointer; border-radius: 6px; }
+  .combo-toggle:hover { color: var(--copper); }
+  .combo-list {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30;
+    max-height: 240px; overflow-y: auto; padding: 6px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow-lift);
+    animation: slideUpFade 0.15s var(--ease) both;
+  }
+  .combo-option { padding: 9px 12px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .combo-option.is-active { background: var(--copper-soft); color: var(--copper-deep); }
+  .combo-option.is-selected { font-weight: 700; }
+  .combo-option.is-selected::after { content: ' ✓'; color: var(--copper); }
+  .combo-empty { padding: 12px; font-size: 13px; color: var(--ink-faint); text-align: center; }
   .field input.otp-input { font-family: var(--font-mono); font-size: 28px; letter-spacing: 12px; text-align: center; padding: 12px; font-weight: 600; }
 
   .form-error { font-size: 13.5px; font-weight: 500; color: var(--critical); background: var(--critical-soft); border-left: 4px solid var(--critical); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; animation: slideUpFade 0.3s var(--ease); }
@@ -287,6 +304,11 @@
   .user-badge { display: flex; align-items: center; gap: 12px; text-align: right; }
   .user-name { font-size: 14px; font-weight: 700; color: var(--ink); }
   .user-role { font-size: 12px; color: var(--ink-faint); font-weight: 500; margin-top: 2px;}
+  /* The profile block is a button (opens Change password) but shouldn't read
+     as one — only a subtle hover hints that it's interactive. */
+  button.user-details { background: none; border: none; padding: 6px 10px; border-radius: var(--radius-sm); text-align: right; cursor: pointer; transition: background 0.2s var(--ease); }
+  button.user-details:hover { background: var(--line-soft); }
+  button.user-details:hover .user-name { color: var(--copper); }
 
   .btn-ghost { background: var(--panel); border: 1px solid var(--line); color: var(--ink-soft); padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-shadow: var(--shadow-sm); transition: all 0.2s var(--ease); }
   .btn-ghost:hover { border-color: var(--copper); color: var(--copper); box-shadow: var(--shadow); transform: translateY(-1px); }
@@ -346,6 +368,12 @@
   .stat-card .value { font-family: var(--font-mono); font-size: 36px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); position: relative; z-index: 1; }
   .stat-card.alert .value { color: var(--critical); }
   .value.pulse { animation: pulseFade 1.2s ease infinite; }
+  .stat-sub { margin-top: 8px; font-size: 12px; font-weight: 600; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; position: relative; z-index: 1; }
+  .stat-sub .sub-sep { color: var(--ink-faint); opacity: 0.5; margin: 0 6px; }
+  .stat-sub .sub-ok { color: var(--ok); }
+  .stat-sub .sub-low { color: var(--low); }
+  .stat-sub .sub-critical { color: var(--critical); }
+  .stat-sub .sub-muted { color: var(--ink-faint); }
 
   .chart-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin-bottom: 16px; text-align: center; }
   .chart-wrapper { position: relative; height: 180px; width: 100%; }
@@ -783,7 +811,7 @@
           </svg>
           <span class="recalc-text">Recalculate</span>
         </button>
-        <div class="user-details"><div class="user-name" id="userName"></div><div class="user-role" id="userRoleDept"></div></div>
+        <button class="user-details" id="profileBtn" title="Change password"><div class="user-name" id="userName"></div><div class="user-role" id="userRoleDept"></div></button>
         <button class="btn-ghost" id="logoutBtn">Sign out</button>
       </div>
     </div>
@@ -794,18 +822,22 @@
         <div class="stat-card clickable" id="cardRmTotal" role="button" tabindex="0">
           <div class="label-row"><span class="label">RM item codes</span><span class="icon-wrap wrap-blue"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><rect x="2.5" y="4" width="11" height="8" rx="1" stroke="currentColor" stroke-width="1.6"/></svg></span></div>
           <div class="value" id="statRmTotal">—</div>
+          <div class="stat-sub" id="statRmSub"></div>
         </div>
         <div class="stat-card clickable" id="cardFgTotal" role="button" tabindex="0">
           <div class="label-row"><span class="label">FG item codes</span><span class="icon-wrap wrap-copper"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><line x1="3" y1="8" x2="6.5" y2="8" stroke="currentColor" stroke-width="1.6"/><line x1="6.5" y1="3.5" x2="6.5" y2="12.5" stroke="currentColor" stroke-width="2"/><line x1="9.5" y1="3.5" x2="9.5" y2="12.5" stroke="currentColor" stroke-width="2"/><line x1="9.5" y1="8" x2="13" y2="8" stroke="currentColor" stroke-width="1.6"/></svg></span></div>
           <div class="value" id="statFgTotal">—</div>
+          <div class="stat-sub" id="statFgSub"></div>
         </div>
         <div class="stat-card clickable alert" id="cardRmAlerts" role="button" tabindex="0">
           <div class="label-row"><span class="label">RM low / critical</span><span class="icon-wrap wrap-low"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2.5L14.5 13.5H1.5L8 2.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.5" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="11.3" r="1" fill="currentColor"/></svg></span></div>
           <div class="value" id="statRmAlerts">—</div>
+          <div class="stat-sub" id="statRmAlertsSub"></div>
         </div>
         <div class="stat-card clickable alert" id="cardFgAlerts" role="button" tabindex="0">
           <div class="label-row"><span class="label">FG low / critical</span><span class="icon-wrap wrap-low"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2.5L14.5 13.5H1.5L8 2.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.5" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="11.3" r="1" fill="currentColor"/></svg></span></div>
           <div class="value" id="statFgAlerts">—</div>
+          <div class="stat-sub" id="statFgAlertsSub"></div>
         </div>
       </div>
       
@@ -903,6 +935,7 @@
         </select>
         <input type="search" id="ldgSearch" placeholder="Search code, name, reference, remarks…">
         <select id="ldgTypeFilter"></select>
+        <select id="ldgCatFilter"></select>
         <select id="ldgDeptFilter"></select>
       </div>
       <div class="toolbar">
@@ -914,7 +947,7 @@
         <span class="freshness-label" id="ldgCount"></span>
         <button class="btn-ghost add-btn-spacer" id="ldgExportBtn"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px;margin-right:6px"><path d="M8 2v8m0 0L5 7m3 3l3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12v1.5A1.5 1.5 0 0 0 4.5 15h7a1.5 1.5 0 0 0 1.5-1.5V12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Export</button>
       </div>
-      <p class="toolbar-hint">Date range and type filters run on the server; the search box filters the loaded rows.</p>
+      <p class="toolbar-hint">Date range, type and department filter on the server; category and search filter the loaded rows.</p>
       <div>
         <table>
           <thead><tr>
@@ -1118,6 +1151,26 @@
   </div>
 </div>
 
+<div id="passwordModal" class="modal-backdrop hidden">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-drag-handle" aria-hidden="true"></div>
+    <div class="modal-head">
+      <div><div class="modal-eyebrow">ACCOUNT</div><h3>Change password</h3><div class="mono muted" id="pwdModalUser"></div></div>
+      <button class="icon-btn" id="pwdCloseBtn" aria-label="Close">✕</button>
+    </div>
+    <form id="passwordForm" autocomplete="off">
+      <div class="form-error" id="pwdError"></div>
+      <div class="field"><label for="pwdCurrent">Current password</label><input type="password" id="pwdCurrent" autocomplete="current-password" required></div>
+      <div class="field"><label for="pwdNew">New password</label><input type="password" id="pwdNew" autocomplete="new-password" required><div class="hint">At least 6 characters.</div></div>
+      <div class="field"><label for="pwdConfirm">Confirm new password</label><input type="password" id="pwdConfirm" autocomplete="new-password" required></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="pwdCancelBtn">Cancel</button>
+        <button type="submit" class="btn-primary btn-compact" id="pwdSaveBtn">Update password</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="install-banner hidden" id="installBanner">
   <img class="js-company-logo-icon" alt="">
   <div class="install-banner-text">
@@ -1136,7 +1189,7 @@
 /* =========================================================================
    CONFIG & PWA SETUP
    ========================================================================= */
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.1.0';
 const GOOGLE_API_URL = 'https://script.google.com/macros/s/AKfycbwgMLr8mcNt402VpdDNkrrPpa0VuhwLs5xdZAtuJx9Iy_LQcKxXpxCO_mZfbCOGPn6Z/exec';
 const COMPANY_NAME = 'CALGAS CAPACITORS';
 const COMPANY_LOGO_ICON_URL = 'https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-192x192.jpg';
@@ -1258,7 +1311,7 @@ const state = {
   session: null,
   rmMaster: [], fgMaster: [], rmStock: [], fgStock: [], departments: [], users: [], dropdowns: {},
   rmSearch: '', fgSearch: '', rmCategory: 'All', fgCategory: 'All', fgSubCategory: 'All', rmStatus: 'All', fgStatus: 'All',
-  ledgerKind: 'rm', ledgerRows: [], ledgerLoaded: false, ledgerSearch: '', ledgerType: '', ledgerDept: '',
+  ledgerKind: 'rm', ledgerRows: [], ledgerLoaded: false, ledgerSearch: '', ledgerType: '', ledgerDept: '', ledgerCat: '',
   ledgerPage: 1, ledgerSort: { col: 'ts', dir: 'desc' },
   rmPage: 1, fgPage: 1, rmShowInactive: false, fgShowInactive: false,
   rmSort: { col: 'idNo', dir: 'asc' }, fgSort: { col: 'idNo', dir: 'asc' },
@@ -2090,6 +2143,35 @@ function renderHome() {
   const fgAlerts = fgRows.filter(function (r) { return r.status === 'Critical' || r.status === 'Low'; });
   animateCount(document.getElementById('statRmAlerts'), rmAlerts.length); animateCount(document.getElementById('statFgAlerts'), fgAlerts.length);
 
+  // Sub-lines under each headline number. The item-code cards get a health
+  // breakdown; the alert cards split Critical from Low, since "27 alerts"
+  // reads very differently depending on how many are actually at zero.
+  const countOf = function (rows, st) { return rows.filter(function (r) { return r.status === st; }).length; };
+  const inactiveCount = function (master, config) {
+    return (master || []).filter(function (m) { return !isActiveValue(m.Active); }).length;
+  };
+  const healthSub = function (rows, master, config) {
+    const parts = [
+      '<span class="sub-ok">' + countOf(rows, 'OK') + ' OK</span>',
+      '<span class="sub-low">' + countOf(rows, 'Low') + ' low</span>',
+      '<span class="sub-critical">' + countOf(rows, 'Critical') + ' critical</span>'
+    ];
+    const na = countOf(rows, 'No Activity');
+    if (na) parts.push('<span class="sub-muted">' + na + ' no activity</span>');
+    const inact = inactiveCount(master, config);
+    if (inact) parts.push('<span class="sub-muted">' + inact + ' inactive</span>');
+    return parts.join('<span class="sub-sep">·</span>');
+  };
+  const alertSub = function (rows) {
+    const crit = countOf(rows, 'Critical'); const low = countOf(rows, 'Low');
+    if (crit + low === 0) return '<span class="sub-ok">All items above minimum</span>';
+    return '<span class="sub-critical">' + crit + ' critical</span><span class="sub-sep">·</span><span class="sub-low">' + low + ' low</span>';
+  };
+  document.getElementById('statRmSub').innerHTML = healthSub(rmRows, state.rmMaster, RM_CONFIG_UI);
+  document.getElementById('statFgSub').innerHTML = healthSub(fgRows, state.fgMaster, FG_CONFIG_UI);
+  document.getElementById('statRmAlertsSub').innerHTML = alertSub(rmRows);
+  document.getElementById('statFgAlertsSub').innerHTML = alertSub(fgRows);
+
   // Render Charts (lazy-loaded — only fetched when Overview is shown)
   ensureChartJs().then(function () {
     document.getElementById('dashboardCharts').classList.remove('hidden');
@@ -2124,6 +2206,7 @@ function renderCharts(rmRows, fgRows) {
   Chart.defaults.color = textColor;
   Chart.defaults.font.family = "'IBM Plex Sans', system-ui, sans-serif";
 
+  const STATUS_LABELS = ['OK', 'Low', 'Critical', 'No Activity'];
   const countByStatus = (rows) => {
     let counts = { 'OK': 0, 'Low': 0, 'Critical': 0, 'No Activity': 0 };
     rows.forEach(r => { if(counts[r.status] !== undefined) counts[r.status]++; });
@@ -2131,18 +2214,33 @@ function renderCharts(rmRows, fgRows) {
   };
 
   const rmData = countByStatus(rmRows); const fgData = countByStatus(fgRows);
-  const chartConfig = (dataArr) => ({
-    type: 'doughnut',
-    data: {
-      labels: ['OK', 'Low', 'Critical', 'No Activity'],
-      datasets: [{
-        data: dataArr,
-        backgroundColor: ['rgba(63, 158, 115, 0.85)', 'rgba(201, 154, 62, 0.85)', 'rgba(217, 80, 58, 0.85)', 'rgba(107, 114, 128, 0.3)'],
-        borderWidth: 0, hoverOffset: 4
-      }]
-    },
-    options: { maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: {size: 11, weight: '600'} } } } }
-  });
+  const chartConfig = (dataArr) => {
+    const total = dataArr.reduce(function (a, b) { return a + b; }, 0);
+    return {
+      type: 'doughnut',
+      data: {
+        // Counts live in the legend label itself rather than only in the
+        // hover tooltip — the donut is read at a glance and on a touch
+        // screen there is no hover to reveal them.
+        labels: STATUS_LABELS.map(function (l, i) { return l + '  ' + dataArr[i]; }),
+        datasets: [{
+          data: dataArr,
+          backgroundColor: ['rgba(63, 158, 115, 0.85)', 'rgba(201, 154, 62, 0.85)', 'rgba(217, 80, 58, 0.85)', 'rgba(107, 114, 128, 0.3)'],
+          borderWidth: 0, hoverOffset: 4
+        }]
+      },
+      options: {
+        maintainAspectRatio: false, cutout: '75%',
+        plugins: {
+          legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11, weight: '600' } } },
+          tooltip: { callbacks: { label: function (ctx) {
+            const pct = total ? Math.round((ctx.parsed / total) * 100) : 0;
+            return ' ' + STATUS_LABELS[ctx.dataIndex] + ': ' + ctx.parsed + ' item' + (ctx.parsed === 1 ? '' : 's') + ' (' + pct + '%)';
+          } } }
+        }
+      }
+    };
+  };
 
   if (rmChartInstance) rmChartInstance.destroy();
   if (fgChartInstance) fgChartInstance.destroy();
@@ -2318,29 +2416,140 @@ function renderField_(f, val) {
   const id = 'itemField_' + f.key;
 
   if (f.type === 'select') {
-    // A real <select>, not an input+datalist combobox — matches the styled
-    // dropdowns in the page toolbars and gives the same native picker.
-    // The Dropdowns tab is the source of truth, so options are rendered in
-    // exactly the order they appear there (no sorting).
+    // A searchable combobox rather than a bare <select>: with 30+ curated
+    // categories, scrolling to find one is slow, and a native select only
+    // matches on the first letters typed. This filters on any substring
+    // while still restricting the saved value to the list (see
+    // enforceComboValue_ — free text that matches nothing reverts).
     const opts = f.options || [];
     const cur = val === null || val === undefined ? '' : String(val);
     // An existing item may hold a value that predates the Dropdowns tab (or
-    // was removed from it). Surface it as its own option instead of letting
-    // the select silently fall back to the first entry and rewrite the
-    // item's data on the next save.
+    // was removed from it). Keep it selectable instead of silently blanking
+    // the field and rewriting the item on the next save.
     const missing = cur && opts.indexOf(cur) === -1;
-    let html = '<div class="field"><label for="' + id + '">' + f.label + (f.required ? ' *' : '') + '</label>' +
-      '<select id="' + id + '" data-key="' + f.key + '"' + (f.required ? ' required' : '') + '>' +
-      '<option value=""' + (cur ? '' : ' selected') + '>' + (f.required ? 'Select…' : '— None —') + '</option>';
-    if (missing) html += '<option value="' + escapeHtml(cur) + '" selected>' + escapeHtml(cur) + ' (not in list)</option>';
-    html += opts.map(function (o) {
-      return '<option value="' + escapeHtml(o) + '"' + (o === cur ? ' selected' : '') + '>' + escapeHtml(o) + '</option>';
-    }).join('');
-    return html + '</select></div>';
+    const listJson = escapeHtml(JSON.stringify(missing ? [cur].concat(opts) : opts));
+    return '<div class="field"><label for="' + id + '">' + f.label + (f.required ? ' *' : '') + '</label>' +
+      '<div class="combo" data-combo>' +
+      '<input type="text" class="combo-input" id="' + id + '" data-key="' + f.key + '" value="' + escapeHtml(cur) + '"' +
+      (f.required ? ' required' : '') + ' autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list"' +
+      ' placeholder="Type to search…" data-options="' + listJson + '">' +
+      '<button type="button" class="combo-toggle" tabindex="-1" aria-label="Show options"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+      '<div class="combo-list hidden"></div>' +
+      '</div></div>';
   }
 
   return '<div class="field"><label for="' + id + '">' + f.label + (f.required ? ' *' : '') + '</label><input type="' + f.type + '" id="' + id + '" data-key="' + f.key + '" value="' + escapeHtml(val) + '"' + (f.placeholder ? ' placeholder="' + escapeHtml(f.placeholder) + '"' : '') + (f.required ? ' required' : '') + (f.type === 'number' ? ' step="any"' : '') + '></div>';
 }
+
+/* Searchable-combobox behaviour, delegated so it covers fields rendered at
+   any time. Keeps the value constrained to the option list: anything typed
+   that doesn't match an option exactly is reverted on blur, so the picker
+   stays authoritative while still being fast to type into. */
+function comboOptions_(input) {
+  try { return JSON.parse(input.dataset.options || '[]'); } catch (e) { return []; }
+}
+function renderComboList_(combo, filter) {
+  const input = combo.querySelector('.combo-input');
+  const list = combo.querySelector('.combo-list');
+  const opts = comboOptions_(input);
+  const q = String(filter || '').trim().toLowerCase();
+  const shown = q ? opts.filter(function (o) { return String(o).toLowerCase().indexOf(q) > -1; }) : opts;
+  if (shown.length === 0) {
+    list.innerHTML = '<div class="combo-empty">No match</div>';
+  } else {
+    list.innerHTML = shown.map(function (o, i) {
+      const sel = String(o) === input.value ? ' is-selected' : '';
+      return '<div class="combo-option' + sel + (i === 0 ? ' is-active' : '') + '" data-value="' + escapeHtml(o) + '">' + escapeHtml(o) + '</div>';
+    }).join('');
+  }
+  list.classList.remove('hidden');
+  input.setAttribute('aria-expanded', 'true');
+}
+function closeCombo_(combo) {
+  const list = combo.querySelector('.combo-list');
+  const input = combo.querySelector('.combo-input');
+  list.classList.add('hidden');
+  input.setAttribute('aria-expanded', 'false');
+}
+// Reverts free text that doesn't exactly match an option. Without this the
+// combobox would quietly reintroduce the typo problem the curated list exists
+// to prevent.
+function enforceComboValue_(input) {
+  const opts = comboOptions_(input).map(String);
+  if (input.value && opts.indexOf(input.value) === -1) {
+    const ci = opts.find(function (o) { return o.toLowerCase() === input.value.toLowerCase(); });
+    input.value = ci || (input.dataset.lastValid || '');
+  }
+  input.dataset.lastValid = input.value;
+}
+document.addEventListener('input', function (e) {
+  const input = e.target.closest('.combo-input');
+  if (!input) return;
+  renderComboList_(input.closest('[data-combo]'), input.value);
+});
+document.addEventListener('focusin', function (e) {
+  const input = e.target.closest('.combo-input');
+  if (!input) return;
+  input.dataset.lastValid = input.value;
+  renderComboList_(input.closest('[data-combo]'), '');
+});
+document.addEventListener('mousedown', function (e) {
+  const toggle = e.target.closest('.combo-toggle');
+  if (toggle) {
+    e.preventDefault();
+    const combo = toggle.closest('[data-combo]');
+    const list = combo.querySelector('.combo-list');
+    if (list.classList.contains('hidden')) { combo.querySelector('.combo-input').focus(); renderComboList_(combo, ''); }
+    else closeCombo_(combo);
+    return;
+  }
+  const opt = e.target.closest('.combo-option');
+  if (opt) {
+    e.preventDefault(); // keep focus so blur-revert doesn't fight the click
+    const combo = opt.closest('[data-combo]');
+    const input = combo.querySelector('.combo-input');
+    input.value = opt.dataset.value;
+    input.dataset.lastValid = input.value;
+    closeCombo_(combo);
+    return;
+  }
+  // Clicking anywhere else closes any open list.
+  document.querySelectorAll('[data-combo]').forEach(function (c) {
+    if (!c.contains(e.target)) closeCombo_(c);
+  });
+});
+document.addEventListener('focusout', function (e) {
+  const input = e.target.closest('.combo-input');
+  if (!input) return;
+  const combo = input.closest('[data-combo]');
+  setTimeout(function () {
+    if (combo.contains(document.activeElement)) return;
+    enforceComboValue_(input);
+    closeCombo_(combo);
+  }, 0);
+});
+document.addEventListener('keydown', function (e) {
+  const input = e.target.closest('.combo-input');
+  if (!input) return;
+  const combo = input.closest('[data-combo]');
+  const list = combo.querySelector('.combo-list');
+  if (list.classList.contains('hidden') && ['ArrowDown', 'ArrowUp'].indexOf(e.key) > -1) { renderComboList_(combo, ''); return; }
+  const options = Array.from(list.querySelectorAll('.combo-option'));
+  if (options.length === 0) return;
+  let idx = options.findIndex(function (o) { return o.classList.contains('is-active'); });
+
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    idx = e.key === 'ArrowDown' ? Math.min(idx + 1, options.length - 1) : Math.max(idx - 1, 0);
+    options.forEach(function (o) { o.classList.remove('is-active'); });
+    options[idx].classList.add('is-active');
+    options[idx].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    if (idx > -1) { e.preventDefault(); input.value = options[idx].dataset.value; input.dataset.lastValid = input.value; closeCombo_(combo); }
+  } else if (e.key === 'Escape') {
+    enforceComboValue_(input); closeCombo_(combo);
+  }
+});
 function openItemModal(key, code) {
   const config = key === 'rm' ? RM_CONFIG_UI : FG_CONFIG_UI; const master = state[config.masterKey];
   
@@ -2562,6 +2771,16 @@ function populateLedgerFilters() {
     config.txnTypes.map(function (t) { return '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>'; }).join('');
   typeSel.value = state.ledgerType || '';
 
+  // Category list follows the RM/FG toggle: RM_Category for raw materials,
+  // FG_Family for finished goods. The ledger sheet has no category column,
+  // so this filters on the item's category resolved from master.
+  const catSel = document.getElementById('ldgCatFilter');
+  const catKey = config.key === 'rm' ? 'RM_Category' : 'FG_Family';
+  const cats = buildFilterOptions_(catKey, state[config.masterKey] || [], config.categoryField);
+  catSel.innerHTML = '<option value="">' + (config.key === 'rm' ? 'All categories' : 'All families') + '</option>' +
+    cats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
+  catSel.value = state.ledgerCat || '';
+
   const depts = (state.departments || []).map(function (d) { return d.DeptName || ''; }).filter(Boolean);
   const deptSel = document.getElementById('ldgDeptFilter');
   deptSel.innerHTML = '<option value="">All departments</option>' +
@@ -2577,9 +2796,10 @@ function initLedgerPage() {
 
   document.getElementById('ldgKind').addEventListener('change', function (e) {
     state.ledgerKind = e.target.value;
-    // Type options are per-config, so a type selected for RM is meaningless
-    // for FG — clear it rather than silently filtering everything out.
-    state.ledgerType = '';
+    // Type and category options are per-config, so selections made for RM
+    // are meaningless for FG — clear them rather than silently filtering
+    // everything out.
+    state.ledgerType = ''; state.ledgerCat = '';
     populateLedgerFilters();
     loadLedgerPage();
   });
@@ -2591,8 +2811,12 @@ function initLedgerPage() {
       loadLedgerPage();
     });
   });
+  // Category filters rows already loaded, so it re-renders instead of refetching.
+  document.getElementById('ldgCatFilter').addEventListener('change', function (e) {
+    state.ledgerCat = e.target.value; state.ledgerPage = 1; renderLedgerPage();
+  });
   document.getElementById('ldgResetBtn').addEventListener('click', function () {
-    state.ledgerType = ''; state.ledgerDept = ''; state.ledgerSearch = '';
+    state.ledgerType = ''; state.ledgerDept = ''; state.ledgerSearch = ''; state.ledgerCat = '';
     ['ldgDateFrom', 'ldgDateTo', 'ldgUserFilter', 'ldgSearch'].forEach(function (id) { document.getElementById(id).value = ''; });
     populateLedgerFilters();
     loadLedgerPage();
@@ -2639,7 +2863,11 @@ async function loadLedgerPage() {
     // once rather than looking each one up per render.
     const master = state[config.masterKey] || [];
     const nameByCode = {};
-    master.forEach(function (m) { nameByCode[m[config.codeField]] = m[config.nameField] || ''; });
+    const catByCode = {};
+    master.forEach(function (m) {
+      nameByCode[m[config.codeField]] = m[config.nameField] || '';
+      catByCode[m[config.codeField]] = m[config.categoryField] || '';
+    });
 
     state.ledgerRows = rows.map(function (r) {
       return {
@@ -2648,6 +2876,7 @@ async function loadLedgerPage() {
         dateISO: r.Timestamp ? new Date(r.Timestamp).toISOString().slice(0, 10) : '',
         code: r[config.codeField] || '',
         name: nameByCode[r[config.codeField]] || '',
+        category: catByCode[r[config.codeField]] || '',
         type: r.TxnType || '', qty: Number(r.Qty) || 0,
         department: r.Department || '', reference: r.Reference || '',
         supplier: r.Supplier || '', invoiceNo: r.InvoiceNo || '',
@@ -2665,6 +2894,10 @@ async function loadLedgerPage() {
 
 function filteredLedgerRows() {
   let rows = state.ledgerRows.slice();
+  // Category is resolved from master rather than sent to the backend — the
+  // ledger sheet stores only the item code, so there's nothing server-side
+  // to filter on.
+  if (state.ledgerCat) rows = rows.filter(function (r) { return r.category === state.ledgerCat; });
   const q = state.ledgerSearch;
   if (q) {
     rows = rows.filter(function (r) {
@@ -2761,6 +2994,44 @@ async function exportLedgerPageToExcel() {
     downloadBase64File(res.filename, res.base64);
     toast('Exported ' + rows.length + ' transactions.');
   } catch (err) { toast(err.message, true); } finally { clearBtnLoading(btn); }
+}
+
+/* =========================================================================
+   CHANGE PASSWORD (self-service, from the profile name in the topbar)
+   ========================================================================= */
+function openPasswordModal() {
+  document.getElementById('pwdModalUser').textContent = state.session ? state.session.username : '';
+  ['pwdCurrent', 'pwdNew', 'pwdConfirm'].forEach(function (id) { document.getElementById(id).value = ''; });
+  document.getElementById('pwdError').textContent = '';
+  document.getElementById('passwordModal').classList.remove('hidden');
+  document.getElementById('pwdCurrent').focus();
+}
+function closePasswordModal() { document.getElementById('passwordModal').classList.add('hidden'); }
+
+async function handleChangePassword(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('pwdError');
+  const btn = document.getElementById('pwdSaveBtn');
+  const currentPassword = document.getElementById('pwdCurrent').value;
+  const newPassword = document.getElementById('pwdNew').value;
+  const confirm = document.getElementById('pwdConfirm').value;
+
+  errEl.textContent = '';
+  // Checked here as well as on the server: the confirm field exists only in
+  // the UI, so there's nothing for the backend to compare against.
+  if (newPassword !== confirm) { errEl.textContent = 'New passwords do not match'; return; }
+  if (newPassword.length < 6) { errEl.textContent = 'New password must be at least 6 characters'; return; }
+
+  setBtnLoading(btn, 'Updating…');
+  try {
+    await api('changePassword', { currentPassword: currentPassword, newPassword: newPassword });
+    closePasswordModal();
+    // The session token stays valid — the server changes the stored hash but
+    // doesn't invalidate sessions, so there's no need to sign back in.
+    toast('Password updated.');
+  } catch (err) {
+    errEl.textContent = err.message;
+  } finally { clearBtnLoading(btn, 'Update password'); }
 }
 
 function renderUsersPage() {
@@ -2888,6 +3159,11 @@ function wireStaticEvents() {
   document.getElementById('railToggleBtn').addEventListener('click', toggleRailCollapse);
   document.getElementById('themeToggleBtn').addEventListener('click', function() { toggleTheme(); });
   window.addEventListener('resize', debounce(updateNavIndicator, 100));
+
+  document.getElementById('profileBtn').addEventListener('click', openPasswordModal);
+  document.getElementById('pwdCloseBtn').addEventListener('click', closePasswordModal);
+  document.getElementById('pwdCancelBtn').addEventListener('click', closePasswordModal);
+  document.getElementById('passwordForm').addEventListener('submit', handleChangePassword);
 
   document.getElementById('installBannerActionBtn').addEventListener('click', async function () {
     if (!_deferredInstallPrompt) return;
