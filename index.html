@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f3f0ea" id="metaThemeColor">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="app-version" content="3.1.0">
+<meta name="app-version" content="3.2.0">
 <link rel="manifest" href="./manifest.json">
 <title>Stock Management</title>
 <link rel="icon" href="https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-192x192.jpg">
@@ -221,6 +221,26 @@
   .combo-option.is-selected { font-weight: 700; }
   .combo-option.is-selected::after { content: ' ✓'; color: var(--copper); }
   .combo-empty { padding: 12px; font-size: 13px; color: var(--ink-faint); text-align: center; }
+  /* Enhanced native selects — the real <select> stays in the DOM (so all
+     existing .value reads and change listeners keep working) but is taken
+     out of the visual and tab flow. */
+  .combo-native { position: absolute !important; opacity: 0 !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: 0 !important; border: 0 !important; pointer-events: none !important; overflow: hidden; }
+  .combo-select { display: inline-block; }
+  .combo-select .combo-input {
+    width: 100%; padding: 12px 40px 12px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    font-family: var(--font-ui); font-size: 13.5px; font-weight: 600; background-color: var(--panel); color: var(--ink);
+    box-shadow: var(--shadow-sm); cursor: pointer; transition: all 0.2s var(--ease);
+  }
+  .combo-select .combo-input:hover { border-color: var(--copper); }
+  .combo-select .combo-input:focus { border-color: var(--copper); box-shadow: 0 0 0 4px var(--copper-soft), var(--shadow); outline: none; cursor: text; }
+  .combo-select.is-disabled { opacity: 0.6; }
+  .combo-select.is-disabled .combo-input { cursor: not-allowed; }
+  /* Inside form fields the enhanced select should match the other inputs. */
+  .field .combo-select { display: block; }
+  .field .combo-select .combo-input { font-size: 14px; font-weight: 500; background-color: var(--line-soft); border-color: transparent; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
+  [data-theme="dark"] .field .combo-select .combo-input { border-color: var(--line); }
+  .field .combo-select .combo-input:focus { background-color: var(--panel); }
+  .toolbar .combo-select { flex-shrink: 0; }
   .field input.otp-input { font-family: var(--font-mono); font-size: 28px; letter-spacing: 12px; text-align: center; padding: 12px; font-weight: 600; }
 
   .form-error { font-size: 13.5px; font-weight: 500; color: var(--critical); background: var(--critical-soft); border-left: 4px solid var(--critical); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; animation: slideUpFade 0.3s var(--ease); }
@@ -991,7 +1011,7 @@
     </div>
     <form id="txnForm">
       <input type="hidden" id="txnCode"><input type="hidden" id="txnKey">
-      <div class="field"><label for="txnType">Transaction type</label><select id="txnType" required></select></div>
+      <div class="field"><label for="txnType">Transaction type</label><select id="txnType" class="no-combo" required></select></div>
       <div class="field"><label for="txnQty">Quantity</label><input type="number" id="txnQty" step="any" required><div class="hint" id="txnQtyHint"></div></div>
       <div class="field"><label for="txnDept">Department</label><select id="txnDept" required></select></div>
       
@@ -1189,7 +1209,7 @@
 /* =========================================================================
    CONFIG & PWA SETUP
    ========================================================================= */
-const APP_VERSION = '3.1.0';
+const APP_VERSION = '3.2.0';
 const GOOGLE_API_URL = 'https://script.google.com/macros/s/AKfycbwgMLr8mcNt402VpdDNkrrPpa0VuhwLs5xdZAtuJx9Iy_LQcKxXpxCO_mZfbCOGPn6Z/exec';
 const COMPANY_NAME = 'CALGAS CAPACITORS';
 const COMPANY_LOGO_ICON_URL = 'https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-192x192.jpg';
@@ -2771,13 +2791,15 @@ function populateLedgerFilters() {
     config.txnTypes.map(function (t) { return '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>'; }).join('');
   typeSel.value = state.ledgerType || '';
 
-  // Category list follows the RM/FG toggle: RM_Category for raw materials,
-  // FG_Family for finished goods. The ledger sheet has no category column,
-  // so this filters on the item's category resolved from master.
+  // Category list follows the RM/FG toggle. RM has a single axis (Category),
+  // while FG is grouped twice — Family and Category — and this filter uses
+  // FG's Category, matching the label shown on the RM side.
   const catSel = document.getElementById('ldgCatFilter');
-  const catKey = config.key === 'rm' ? 'RM_Category' : 'FG_Family';
-  const cats = buildFilterOptions_(catKey, state[config.masterKey] || [], config.categoryField);
-  catSel.innerHTML = '<option value="">' + (config.key === 'rm' ? 'All categories' : 'All families') + '</option>' +
+  const isFg = config.key === 'fg';
+  const catKey = isFg ? config.subCategoryDropdown : 'RM_Category';
+  const catField = isFg ? config.subCategoryField : config.categoryField;
+  const cats = buildFilterOptions_(catKey, state[config.masterKey] || [], catField);
+  catSel.innerHTML = '<option value="">All categories</option>' +
     cats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
   catSel.value = state.ledgerCat || '';
 
@@ -2862,11 +2884,14 @@ async function loadLedgerPage() {
     // Names live in the master sheet, not the ledger, so join them on here
     // once rather than looking each one up per render.
     const master = state[config.masterKey] || [];
+    // Must read the same field the category filter lists, or the two would
+    // never match on FG (filter lists Category, rows would carry Family).
+    const catField = config.subCategoryField || config.categoryField;
     const nameByCode = {};
     const catByCode = {};
     master.forEach(function (m) {
       nameByCode[m[config.codeField]] = m[config.nameField] || '';
-      catByCode[m[config.codeField]] = m[config.categoryField] || '';
+      catByCode[m[config.codeField]] = m[catField] || '';
     });
 
     state.ledgerRows = rows.map(function (r) {
@@ -3032,6 +3057,140 @@ async function handleChangePassword(e) {
   } catch (err) {
     errEl.textContent = err.message;
   } finally { clearBtnLoading(btn, 'Update password'); }
+}
+
+/* =========================================================================
+   SEARCHABLE SELECTS — upgrades every native <select> in the app to the same
+   type-to-filter combobox used by the item form.
+
+   The native <select> is kept in the DOM as the source of truth and only
+   visually hidden. That way every existing `el.value` read, `el.value = x`
+   write, and 'change' listener keeps working untouched — the combobox is
+   purely a presentation layer over it. Two hooks keep the two in sync:
+     - a MutationObserver, because most of these are repopulated by
+       replacing innerHTML (populateCategoryFilters, populateLedgerFilters…)
+     - a per-element override of the `value` setter, because assigning
+       `select.value` programmatically (e.g. the dashboard drill-down reset)
+       fires no event that could be listened for.
+   ========================================================================= */
+function enhanceSelect_(select) {
+  if (select.dataset.comboReady) return;
+  select.dataset.comboReady = '1';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'combo combo-select';
+  select.parentNode.insertBefore(wrap, select);
+  wrap.appendChild(select);
+  select.classList.add('combo-native');
+  select.setAttribute('tabindex', '-1');
+  select.setAttribute('aria-hidden', 'true');
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'combo-input';
+  input.autocomplete = 'off';
+  input.setAttribute('role', 'combobox');
+  input.setAttribute('aria-expanded', 'false');
+  // A `required` control that isn't focusable makes the browser abort submit
+  // with a console error and no visible message. Since the select is now
+  // hidden, move the constraint onto the input the user can actually see.
+  if (select.required) { select.required = false; input.required = true; select.dataset.wasRequired = '1'; }
+  const label = select.id ? document.querySelector('label[for="' + select.id + '"]') : null;
+  if (label) { input.id = select.id + '_combo'; label.setAttribute('for', input.id); }
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'combo-toggle';
+  toggle.tabIndex = -1;
+  toggle.setAttribute('aria-label', 'Show options');
+  toggle.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const list = document.createElement('div');
+  list.className = 'combo-list hidden';
+  wrap.appendChild(input); wrap.appendChild(toggle); wrap.appendChild(list);
+
+  function optionsOf() {
+    return Array.from(select.options).map(function (o) { return { value: o.value, text: o.textContent }; });
+  }
+  function syncDisplay() {
+    const sel = select.options[select.selectedIndex];
+    input.value = sel ? sel.textContent : '';
+    input.disabled = select.disabled;
+    wrap.classList.toggle('is-disabled', select.disabled);
+    // A disabled select is exempt from validation; mirror that so a disabled
+    // department picker can't block the form.
+    if (select.disabled) input.required = false;
+    else if (select.dataset.wasRequired === '1') input.required = true;
+  }
+  function openList(filter) {
+    if (select.disabled) return;
+    const q = String(filter || '').trim().toLowerCase();
+    const shown = optionsOf().filter(function (o) { return !q || o.text.toLowerCase().indexOf(q) > -1; });
+    list.innerHTML = shown.length === 0
+      ? '<div class="combo-empty">No match</div>'
+      : shown.map(function (o, i) {
+          const isSel = o.value === select.value ? ' is-selected' : '';
+          return '<div class="combo-option' + isSel + (i === 0 ? ' is-active' : '') + '" data-value="' + escapeHtml(o.value) + '">' + escapeHtml(o.text) + '</div>';
+        }).join('');
+    list.classList.remove('hidden');
+    input.setAttribute('aria-expanded', 'true');
+  }
+  function closeList() { list.classList.add('hidden'); input.setAttribute('aria-expanded', 'false'); }
+  function commit(value) {
+    select.value = value;
+    syncDisplay();
+    closeList();
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  input.addEventListener('focus', function () { input.select(); openList(''); });
+  input.addEventListener('input', function () { openList(input.value); });
+  input.addEventListener('blur', function () { setTimeout(function () { if (!wrap.contains(document.activeElement)) { syncDisplay(); closeList(); } }, 0); });
+  toggle.addEventListener('mousedown', function (e) {
+    e.preventDefault();
+    if (list.classList.contains('hidden')) { input.focus(); } else { closeList(); }
+  });
+  list.addEventListener('mousedown', function (e) {
+    const opt = e.target.closest('.combo-option');
+    if (!opt) return;
+    e.preventDefault(); // hold focus so the blur handler doesn't undo this
+    commit(opt.dataset.value);
+  });
+  input.addEventListener('keydown', function (e) {
+    if (list.classList.contains('hidden') && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { openList(''); return; }
+    const opts = Array.from(list.querySelectorAll('.combo-option'));
+    if (opts.length === 0) return;
+    let idx = opts.findIndex(function (o) { return o.classList.contains('is-active'); });
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      idx = e.key === 'ArrowDown' ? Math.min(idx + 1, opts.length - 1) : Math.max(idx - 1, 0);
+      opts.forEach(function (o) { o.classList.remove('is-active'); });
+      opts[idx].classList.add('is-active');
+      opts[idx].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      if (idx > -1) { e.preventDefault(); commit(opts[idx].dataset.value); }
+    } else if (e.key === 'Escape') { syncDisplay(); closeList(); }
+  });
+
+  // Repopulation (innerHTML replaced) or a runtime disabled toggle — refresh
+  // the visible text and interactive state.
+  new MutationObserver(syncDisplay).observe(select, { childList: true, attributes: true, attributeFilter: ['disabled'] });
+
+  // Programmatic `select.value = x` fires no event, so intercept the setter
+  // on this instance and refresh from it.
+  const desc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+  Object.defineProperty(select, 'value', {
+    configurable: true,
+    get: function () { return desc.get.call(this); },
+    set: function (v) { desc.set.call(this, v); syncDisplay(); }
+  });
+
+  syncDisplay();
+}
+
+// Applied to filter/toolbar/modal selects. Skipped for the transaction-type
+// picker, which is a short list whose change handler reshapes the form —
+// searching three options adds nothing there.
+function enhanceAllSelects_() {
+  document.querySelectorAll('select:not(.no-combo)').forEach(enhanceSelect_);
 }
 
 function renderUsersPage() {
@@ -3226,6 +3385,9 @@ function wireStaticEvents() {
   ['confirmCancelBtn', 'confirmModal'].forEach(id => document.getElementById(id).addEventListener('click', function (e) { if (e.target.id === id) _settleConfirm(false); }));
   window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !document.getElementById('confirmModal').classList.contains('hidden')) _settleConfirm(false); });
   makeTablesResizable();
+  // Last: every change listener above is already attached, so the events the
+  // enhancer dispatches on selection land where they should.
+  enhanceAllSelects_();
 }
 
 function wireStockPageEvents(kind) {
