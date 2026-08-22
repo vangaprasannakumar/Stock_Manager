@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f3f0ea" id="metaThemeColor">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="app-version" content="3.2.0">
+<meta name="app-version" content="3.2.1">
 <link rel="manifest" href="./manifest.json">
 <title>Stock Management</title>
 <link rel="icon" href="https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-192x192.jpg">
@@ -1209,7 +1209,7 @@
 /* =========================================================================
    CONFIG & PWA SETUP
    ========================================================================= */
-const APP_VERSION = '3.2.0';
+const APP_VERSION = '3.2.1';
 const GOOGLE_API_URL = 'https://script.google.com/macros/s/AKfycbwgMLr8mcNt402VpdDNkrrPpa0VuhwLs5xdZAtuJx9Iy_LQcKxXpxCO_mZfbCOGPn6Z/exec';
 const COMPANY_NAME = 'CALGAS CAPACITORS';
 const COMPANY_LOGO_ICON_URL = 'https://raw.githubusercontent.com/vangaprasannakumar/Stock_Manager/refs/heads/main/logo/LOGO-192x192.jpg';
@@ -3079,6 +3079,9 @@ function enhanceSelect_(select) {
 
   const wrap = document.createElement('div');
   wrap.className = 'combo combo-select';
+  // Layout styles written inline on the select (e.g. flex:1) belong to the
+  // slot it occupies, so move them to the wrapper that now fills that slot.
+  if (select.getAttribute('style')) { wrap.setAttribute('style', select.getAttribute('style')); select.removeAttribute('style'); }
   select.parentNode.insertBefore(wrap, select);
   wrap.appendChild(select);
   select.classList.add('combo-native');
@@ -3173,6 +3176,12 @@ function enhanceSelect_(select) {
   // Repopulation (innerHTML replaced) or a runtime disabled toggle — refresh
   // the visible text and interactive state.
   new MutationObserver(syncDisplay).observe(select, { childList: true, attributes: true, attributeFilter: ['disabled'] });
+
+  // form.reset() restores the select's default option without firing an
+  // event or touching the value setter, so the visible text would otherwise
+  // keep showing the last submitted value. Re-sync on the next tick, once
+  // the browser has applied the reset.
+  if (select.form) select.form.addEventListener('reset', function () { setTimeout(syncDisplay, 0); });
 
   // Programmatic `select.value = x` fires no event, so intercept the setter
   // on this instance and refresh from it.
